@@ -1,0 +1,15 @@
+node_modules/
+game_data.json
+*.log
+.DS_Store
+.trae/
+附录图表/
+*.py
+*.m
+*.txt
+图表清单.md
+数据纠正报告.md
+所有*图表*.html
+绿电园区*.html
+问题*.html
+附录*.py

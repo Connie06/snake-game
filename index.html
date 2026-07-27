@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>萌蛇大觅食</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="loginScreen" class="start-screen">
+        <div class="floating-circles">
+            <div class="circle circle1"></div>
+            <div class="circle circle2"></div>
+            <div class="circle circle3"></div>
+            <div class="circle circle4"></div>
+            <div class="circle circle5"></div>
+            <div class="circle circle6"></div>
+            <div class="circle circle7"></div>
+        </div>
+        <div class="start-content">
+            <div class="logo-container">
+                <div class="logo-animation">
+                    <span class="logo-icon">🐍</span>
+                </div>
+                <h1 class="game-title">萌蛇大觅食</h1>
+                <p class="game-subtitle">Snake Adventure</p>
+            </div>
+            
+            <div class="login-container">
+                <div class="login-tabs">
+                    <button class="tab-btn active" data-tab="login">账号登录</button>
+                    <button class="tab-btn" data-tab="register">注册账号</button>
+                </div>
+                
+                <div class="login-form" id="loginForm">
+                    <div class="form-group">
+                        <label>📱 手机号</label>
+                        <input type="tel" id="loginPhone" placeholder="请输入11位手机号" maxlength="11">
+                    </div>
+                    <div class="form-group">
+                        <label>🔒 密码</label>
+                        <input type="password" id="loginPassword" placeholder="请输入密码">
+                    </div>
+                    <button id="loginBtn" class="btn btn-primary" style="width: 100%; margin-top: 15px;">登录</button>
+                </div>
+                
+                <div class="login-form hidden" id="registerForm">
+                    <div class="form-group">
+                        <label>📱 手机号</label>
+                        <input type="tel" id="registerPhone" placeholder="请输入11位手机号" maxlength="11">
+                    </div>
+                    <div class="form-group">
+                        <label>👤 用户名</label>
+                        <input type="text" id="registerUsername" placeholder="2-12位，支持中英文">
+                        <span class="username-check" id="usernameCheck"></span>
+                    </div>
+                    <div class="form-group">
+                        <label>🔒 密码</label>
+                        <input type="password" id="registerPassword" placeholder="至少6位">
+                    </div>
+                    <div class="form-group">
+                        <label>🔒 确认密码</label>
+                        <input type="password" id="registerConfirmPassword" placeholder="再次输入密码">
+                    </div>
+                    <button id="registerBtn" class="btn btn-primary" style="width: 100%; margin-top: 15px;">注册</button>
+                </div>
+                
+                <div class="divider"><span>或</span></div>
+                
+                <button id="guestBtn" class="btn btn-secondary" style="width: 100%;">🎮 游客模式（快速体验）</button>
+                <button id="leaderboardBtn" class="btn" style="width: 100%; margin-top: 10px; background: linear-gradient(135deg, #ffeaa7, #fdcb6e); color: #2d3436;">🏆 查看排行榜</button>
+            </div>
+            
+            <div class="user-info hidden" id="userInfo">
+                <p>欢迎回来，<span id="currentUsername"></span>！</p>
+                <p>最高分：<span id="userHighScore">0</span> | 最高关：<span id="userHighLevel">1</span></p>
+                <button id="logoutBtn" class="btn btn-secondary">退出登录</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="leaderboardOverlay" class="game-start-overlay hidden">
+        <div class="start-overlay-content" style="max-width: 500px;">
+            <h2>🏆 排行榜</h2>
+            <div class="leaderboard-container" id="leaderboardContainer">
+                <p style="text-align: center; color: #636e72;">加载中...</p>
+            </div>
+            <button id="closeLeaderboardBtn" class="btn btn-secondary" style="display: block; margin: 20px auto 0;">关闭</button>
+        </div>
+    </div>
+
+    <div id="startScreen" class="start-screen hidden">
+        <div class="floating-circles">
+            <div class="circle circle1"></div>
+            <div class="circle circle2"></div>
+            <div class="circle circle3"></div>
+            <div class="circle circle4"></div>
+            <div class="circle circle5"></div>
+            <div class="circle circle6"></div>
+            <div class="circle circle7"></div>
+        </div>
+        <div class="start-content">
+            <div class="logo-container">
+                <div class="logo-animation">
+                    <span class="logo-icon">🐍</span>
+                </div>
+                <h1 class="game-title">萌蛇大觅食</h1>
+                <p class="game-subtitle">Snake Adventure</p>
+                <div class="title-glow"></div>
+            </div>
+            
+            <div class="character-select" id="characterSelect">
+                <h3>选择你的小蛇</h3>
+                <div class="characters-grid" id="charactersGrid"></div>
+                
+                <h3 style="margin-top: 20px;">选择身体颜色</h3>
+                <div class="color-grid" id="colorGrid"></div>
+            </div>
+            
+            <div class="game-start-overlay hidden" id="gameStartOverlay">
+                <div class="start-overlay-content">
+                    <h2>🎮 游戏说明</h2>
+                    <div class="instructions">
+                        <div class="instruction-section">
+                            <h3>🎯 操作指南</h3>
+                            <div class="instruction-grid">
+                                <div class="instruction-item"><strong>↑↓←→</strong> 或 <strong>WASD</strong><span>控制小蛇移动方向</span></div>
+                                <div class="instruction-item"><strong>空格键</strong><span>暂停/继续游戏</span></div>
+                                <div class="instruction-item"><strong>J 键</strong><span>发射激光武器（射程8格）</span></div>
+                                <div class="instruction-item"><strong>ESC 键</strong><span>返回游戏封面</span></div>
+                            </div>
+                        </div>
+                        <div class="instruction-section">
+                            <h3>📦 道具说明</h3>
+                            <div class="instruction-grid">
+                                <div class="instruction-item">
+                                    <canvas class="instruction-icon" data-type="normal-food" width="32" height="32"></canvas>
+                                    <div><strong>普通食物</strong><span>绿色，+10分</span></div>
+                                </div>
+                                <div class="instruction-item">
+                                    <canvas class="instruction-icon" data-type="grow-food" width="32" height="32"></canvas>
+                                    <div><strong>变大食物</strong><span>蓝色，蛇身+2节</span></div>
+                                </div>
+                                <div class="instruction-item">
+                                    <canvas class="instruction-icon" data-type="shrink-food" width="32" height="32"></canvas>
+                                    <div><strong>变小食物</strong><span>红色，蛇身-1节</span></div>
+                                </div>
+                                <div class="instruction-item">
+                                    <canvas class="instruction-icon" data-type="health" width="32" height="32"></canvas>
+                                    <div><strong>生命包</strong><span>💖 +1生命值</span></div>
+                                </div>
+                                <div class="instruction-item">
+                                    <canvas class="instruction-icon" data-type="weapon" width="32" height="32"></canvas>
+                                    <div><strong>武器包</strong><span>🔫 +5弹药</span></div>
+                                </div>
+                                <div class="instruction-item">
+                                    <canvas class="instruction-icon" data-type="obstacle" width="32" height="32"></canvas>
+                                    <div><strong>彩色路障</strong><span>触碰-1生命，可被激光摧毁</span></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="instruction-section">
+                            <h3>💡 游戏技巧</h3>
+                            <ul class="tips-list">
+                                <li>激光射程为8格，可以远距离清除障碍物</li>
+                                <li>武器弹药会保存，每局累计不会清空</li>
+                                <li>障碍物会随时间出现，注意躲避或摧毁</li>
+                                <li>关卡越高，蛇移动速度越快</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <button id="confirmStartBtn" class="btn btn-primary">确认开始</button>
+                </div>
+            </div>
+
+            <div class="start-buttons">
+                <button id="playBtn" class="btn btn-primary">开始游戏</button>
+                <button id="customBtn" class="btn btn-secondary">选择形象</button>
+            </div>
+            
+            <div class="start-hints">
+                <p>🎮 操作说明</p>
+                <p>↑↓←→ / WASD: 移动 | 空格: 暂停 | J: 发射激光 | ESC: 返回封面</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="gameContainer" class="game-container hidden">
+        <header class="game-header">
+            <h1>🐍 萌蛇大觅食</h1>
+            <div class="title-rank">
+                <span class="rank-title" id="rankTitle">新手探险家</span>
+            </div>
+            <div class="game-info">
+                <span class="info-item">关卡: <span id="level">1</span></span>
+                <span class="info-item">分数: <span id="score">0</span></span>
+                <span class="info-item">最高分: <span id="totalScore">0</span></span>
+                <span class="info-item">最高关: <span id="highestLevel">1</span></span>
+            </div>
+        </header>
+        
+        <div class="game-area">
+            <div class="canvas-wrapper">
+                <canvas id="gameCanvas"></canvas>
+                
+                <div id="gameOver" class="overlay hidden">
+                    <div class="overlay-content">
+                        <h2>游戏结束!</h2>
+                        <p>本局分数: <span id="finalScore">0</span></p>
+                        <p>到达关卡: <span id="finalLevel">1</span></p>
+                        <p class="rank-award">荣誉称号: <span id="finalRank">新手探险家</span></p>
+                        <button id="restartBtn" class="btn">再来一局</button>
+                        <button id="backToMenuFromGameOverBtn" class="btn btn-secondary">返回封面</button>
+                    </div>
+                </div>
+                
+                <div id="levelUp" class="overlay hidden">
+                    <div class="overlay-content">
+                        <h2>🎉 恭喜进入第 <span id="newLevel">2</span> 关!</h2>
+                        <p>速度加快，难度提升!</p>
+                        <button id="continueBtn" class="btn">继续游戏</button>
+                        <button id="backToMenuFromLevelUpBtn" class="btn btn-secondary">返回封面</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="side-panel">
+                <div class="panel-section">
+                    <h3>❤️ 生命值</h3>
+                    <div class="health-bar">
+                        <div id="health" class="health-fill"></div>
+                    </div>
+                    <div class="health-text">剩余: <span id="healthText">10</span>/10</div>
+                </div>
+                
+                <div class="panel-section">
+                    <h3>🎯 武器弹药</h3>
+                    <div id="weaponDisplay">
+                        <span id="weaponIcon">🔫</span>
+                        <span id="weaponAmmo">0</span>
+                    </div>
+                </div>
+                
+                <div class="panel-section">
+                    <h3>🎮 操作说明</h3>
+                    <ul>
+                        <li>↑↓←→ / WASD: 移动</li>
+                        <li>空格: 暂停</li>
+                        <li>J: 发射激光</li>
+                        <li>ESC: 返回封面</li>
+                    </ul>
+                </div>
+                
+                <div class="panel-section">
+                    <h3>📦 道具说明</h3>
+                    <div class="item-guide">
+                        <div class="item"><canvas class="item-icon" data-type="normal-food" width="32" height="32"></canvas><span>普通食物 +10分</span></div>
+                        <div class="item"><canvas class="item-icon" data-type="grow-food" width="32" height="32"></canvas><span>变大食物 +2节</span></div>
+                        <div class="item"><canvas class="item-icon" data-type="shrink-food" width="32" height="32"></canvas><span>变小食物 -1节</span></div>
+                        <div class="item"><canvas class="item-icon" data-type="health" width="32" height="32"></canvas><span>生命包 +1生命</span></div>
+                        <div class="item"><canvas class="item-icon" data-type="weapon" width="32" height="32"></canvas><span>武器包 +5弹药</span></div>
+                        <div class="item"><canvas class="item-icon" data-type="obstacle" width="32" height="32"></canvas><span>彩色路障 -1生命</span></div>
+                    </div>
+                    <p style="font-size: 12px; color: #636e72; margin-top: 10px; text-align: center;">💡 武器射程：8格</p>
+                </div>
+                
+                <div class="panel-section">
+                    <h3>📊 关卡选择</h3>
+                    <div id="levelSelect">
+                        <button id="prevLevel" class="level-btn">← 上一关</button>
+                        <span id="currentLevelDisplay">第 1 关</span>
+                        <button id="nextLevel" class="level-btn">下一关 →</button>
+                    </div>
+                    <button id="startBtn" class="btn btn-primary">开始游戏</button>
+                    <button id="pauseBtn" class="btn">暂停</button>
+                    <button id="backToMenuBtn" class="btn btn-secondary">返回封面</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="mobile-controls" id="mobileControls">
+            <div class="control-pad">
+                <div class="control-up" id="controlUp">⬆️</div>
+                <div class="control-row">
+                    <div class="control-left" id="controlLeft">⬅️</div>
+                    <div class="control-center" id="controlCenter">🎮</div>
+                    <div class="control-right" id="controlRight">➡️</div>
+                </div>
+                <div class="control-down" id="controlDown">⬇️</div>
+            </div>
+            <div class="action-buttons">
+                <button id="shootBtn" class="action-btn">🔫 射击</button>
+                <button id="backToMenuFromMobileBtn" class="action-btn btn-secondary">🏠 返回</button>
+            </div>
+        </div>
+        
+        <footer class="game-footer">
+            <p>上次记录: 第 <span id="lastLevel">1</span> 关 | 历史最高分: <span id="highScore">0</span></p>
+        </footer>
+    </div>
+    
+    <script src="script.js"></script>
+</body>
+</html>
