@@ -1,7 +1,10 @@
-{
-  "buildCommand": "npm install",
-  "startCommand": "node server.js",
-  "envVars": {
-    "NODE_ENV": "production"
-  }
-}
+services:
+  - type: web
+    name: snake-game
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: NODE_ENV
+        value: production

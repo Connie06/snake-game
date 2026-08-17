@@ -1,8 +1,15 @@
 node_modules/
 game_data.json
+rooms_data.json
+data/
 *.log
 .DS_Store
 .trae/
+__pycache__/
+*.zip
+停止游戏.bat
+启动游戏.bat
+萌蛇大觅食_Python版/
 附录图表/
 *.py
 *.m

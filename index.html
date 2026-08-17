@@ -3,10 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>萌蛇大觅食</title>
+    <title>萌蛇大觅食 · 豪华版</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+    <!-- ============ 登录界面 ============ -->
     <div id="loginScreen" class="start-screen">
         <div class="floating-circles">
             <div class="circle circle1"></div>
@@ -23,15 +24,15 @@
                     <span class="logo-icon">🐍</span>
                 </div>
                 <h1 class="game-title">萌蛇大觅食</h1>
-                <p class="game-subtitle">Snake Adventure</p>
+                <p class="game-subtitle">Snake Adventure · 豪华对战版</p>
             </div>
-            
+
             <div class="login-container">
                 <div class="login-tabs">
                     <button class="tab-btn active" data-tab="login">账号登录</button>
                     <button class="tab-btn" data-tab="register">注册账号</button>
                 </div>
-                
+
                 <div class="login-form" id="loginForm">
                     <div class="form-group">
                         <label>📱 手机号</label>
@@ -43,7 +44,7 @@
                     </div>
                     <button id="loginBtn" class="btn btn-primary" style="width: 100%; margin-top: 15px;">登录</button>
                 </div>
-                
+
                 <div class="login-form hidden" id="registerForm">
                     <div class="form-group">
                         <label>📱 手机号</label>
@@ -64,24 +65,39 @@
                     </div>
                     <button id="registerBtn" class="btn btn-primary" style="width: 100%; margin-top: 15px;">注册</button>
                 </div>
-                
+
                 <div class="divider"><span>或</span></div>
-                
+
                 <button id="guestBtn" class="btn btn-secondary" style="width: 100%;">🎮 游客模式（快速体验）</button>
-                <button id="leaderboardBtn" class="btn" style="width: 100%; margin-top: 10px; background: linear-gradient(135deg, #ffeaa7, #fdcb6e); color: #2d3436;">🏆 查看排行榜</button>
+                <div style="display: flex; gap: 10px; margin-top: 10px;">
+                    <button id="leaderboardBtnLogin" class="btn btn-secondary" style="flex: 1;">🏆 排行榜</button>
+                </div>
             </div>
-            
+
             <div class="user-info hidden" id="userInfo">
-                <p>欢迎回来，<span id="currentUsername"></span>！</p>
-                <p>最高分：<span id="userHighScore">0</span> | 最高关：<span id="userHighLevel">1</span></p>
-                <button id="logoutBtn" class="btn btn-secondary">退出登录</button>
+                <div id="userAvatarDisplay" class="user-avatar">🐍</div>
+                <p>欢迎回来，<strong id="currentUsername" style="font-size:18px;"></strong>！</p>
+                <div class="user-stats-row">
+                    <div class="stat-chip">🏆 <span id="userCrowns">0</span></div>
+                    <div class="stat-chip">⭐ <span id="userHighScore">0</span></div>
+                    <div class="stat-chip">🚀 第<span id="userHighLevel">1</span>关</div>
+                </div>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap; justify-content: center;">
+                    <button id="profileBtn" class="btn btn-secondary">👤 个人中心</button>
+                    <button id="logoutBtn" class="btn btn-secondary">退出登录</button>
+                </div>
             </div>
         </div>
     </div>
 
+    <!-- ============ 双排行榜弹窗 ============ -->
     <div id="leaderboardOverlay" class="game-start-overlay hidden">
-        <div class="start-overlay-content" style="max-width: 500px;">
-            <h2>🏆 排行榜</h2>
+        <div class="start-overlay-content" style="max-width: 600px;">
+            <h2>🏆 全服排行榜</h2>
+            <div class="leaderboard-tabs">
+                <button class="lb-tab-btn active" data-lb="adventure">🎯 闯关榜</button>
+                <button class="lb-tab-btn" data-lb="battle">👑 对战榜</button>
+            </div>
             <div class="leaderboard-container" id="leaderboardContainer">
                 <p style="text-align: center; color: #636e72;">加载中...</p>
             </div>
@@ -89,105 +105,378 @@
         </div>
     </div>
 
+    <!-- ============ 主大厅（闯关/对战选择） ============ -->
     <div id="startScreen" class="start-screen hidden">
         <div class="floating-circles">
-            <div class="circle circle1"></div>
-            <div class="circle circle2"></div>
-            <div class="circle circle3"></div>
-            <div class="circle circle4"></div>
-            <div class="circle circle5"></div>
-            <div class="circle circle6"></div>
-            <div class="circle circle7"></div>
+            <div class="circle circle1"></div><div class="circle circle2"></div><div class="circle circle3"></div>
+            <div class="circle circle4"></div><div class="circle circle5"></div><div class="circle circle6"></div><div class="circle circle7"></div>
         </div>
         <div class="start-content">
             <div class="logo-container">
-                <div class="logo-animation">
-                    <span class="logo-icon">🐍</span>
-                </div>
+                <div class="logo-animation"><span class="logo-icon">🐍</span></div>
                 <h1 class="game-title">萌蛇大觅食</h1>
-                <p class="game-subtitle">Snake Adventure</p>
-                <div class="title-glow"></div>
+                <p class="game-subtitle">选择模式 · 开启冒险</p>
             </div>
-            
+
+            <!-- 设备选择 -->
+            <div class="device-select" style="margin-bottom: 12px;">
+                <span style="font-size: 14px; color: #fff; font-weight: 600; margin-right: 10px;">🖥 设备模式：</span>
+                <button class="device-btn active" data-device="pc">💻 电脑端</button>
+                <button class="device-btn" data-device="mobile">📱 手机端</button>
+            </div>
+
+            <!-- 模式选择卡片 -->
+            <div class="mode-cards">
+                <div class="mode-card adventure-card" data-mode="adventure">
+                    <div class="mode-icon">🎯</div>
+                    <h3>闯关模式</h3>
+                    <p>经典贪吃蛇玩法，挑战关卡上限，解锁排行榜新纪录！</p>
+                    <button class="btn btn-primary mode-play-btn" data-mode="adventure">开始闯关</button>
+                </div>
+                <div class="mode-card battle-card" data-mode="battle">
+                    <div class="mode-icon">⚔️</div>
+                    <h3>对战模式</h3>
+                    <p>2-10人大乱斗，吃道具、射击对手，拿皇冠登荣誉榜！</p>
+                    <button class="btn mode-play-btn battle-btn" data-mode="battle">进入对战</button>
+                </div>
+            </div>
+
+            <!-- 形象选择展开区 -->
             <div class="character-select" id="characterSelect">
-                <h3>选择你的小蛇</h3>
-                <div class="characters-grid" id="charactersGrid"></div>
-                
-                <h3 style="margin-top: 20px;">选择身体颜色</h3>
-                <div class="color-grid" id="colorGrid"></div>
-            </div>
-            
-            <div class="game-start-overlay hidden" id="gameStartOverlay">
-                <div class="start-overlay-content">
-                    <h2>🎮 游戏说明</h2>
-                    <div class="instructions">
-                        <div class="instruction-section">
-                            <h3>🎯 操作指南</h3>
-                            <div class="instruction-grid">
-                                <div class="instruction-item"><strong>↑↓←→</strong> 或 <strong>WASD</strong><span>控制小蛇移动方向</span></div>
-                                <div class="instruction-item"><strong>空格键</strong><span>暂停/继续游戏</span></div>
-                                <div class="instruction-item"><strong>J 键</strong><span>发射激光武器（射程8格）</span></div>
-                                <div class="instruction-item"><strong>ESC 键</strong><span>返回游戏封面</span></div>
-                            </div>
+                <div class="customize-tabs">
+                    <button class="c-tab-btn active" data-ctab="preset">✨ 预设形象</button>
+                    <button class="c-tab-btn" data-ctab="head">🧠 头部DIY</button>
+                    <button class="c-tab-btn" data-ctab="body">🎨 身体调色</button>
+                    <button class="c-tab-btn" data-ctab="skins">💾 我的皮肤</button>
+                </div>
+
+                <div class="c-tab-content" data-ctab="preset">
+                    <h3>选择头部形象</h3>
+                    <div class="characters-grid" id="charactersGrid"></div>
+                    <h3 style="margin-top: 16px;">选择身体配色</h3>
+                    <div class="color-grid" id="colorGrid"></div>
+                </div>
+
+                <div class="c-tab-content hidden" data-ctab="head">
+                    <h3>🧠 自定义头部（拖拽预览可调整眼睛位置）</h3>
+                    <div class="head-customize-grid">
+                        <div class="custom-preview-box">
+                            <h4>实时预览（拖拽眼睛移动位置）</h4>
+                            <canvas id="headPreviewCanvas" width="200" height="200" style="cursor: grab; touch-action: none;"></canvas>
                         </div>
-                        <div class="instruction-section">
-                            <h3>📦 道具说明</h3>
-                            <div class="instruction-grid">
-                                <div class="instruction-item">
-                                    <canvas class="instruction-icon" data-type="normal-food" width="32" height="32"></canvas>
-                                    <div><strong>普通食物</strong><span>绿色，+10分</span></div>
-                                </div>
-                                <div class="instruction-item">
-                                    <canvas class="instruction-icon" data-type="grow-food" width="32" height="32"></canvas>
-                                    <div><strong>变大食物</strong><span>蓝色，蛇身+2节</span></div>
-                                </div>
-                                <div class="instruction-item">
-                                    <canvas class="instruction-icon" data-type="shrink-food" width="32" height="32"></canvas>
-                                    <div><strong>变小食物</strong><span>红色，蛇身-1节</span></div>
-                                </div>
-                                <div class="instruction-item">
-                                    <canvas class="instruction-icon" data-type="health" width="32" height="32"></canvas>
-                                    <div><strong>生命包</strong><span>💖 +1生命值</span></div>
-                                </div>
-                                <div class="instruction-item">
-                                    <canvas class="instruction-icon" data-type="weapon" width="32" height="32"></canvas>
-                                    <div><strong>武器包</strong><span>🔫 +5弹药</span></div>
-                                </div>
-                                <div class="instruction-item">
-                                    <canvas class="instruction-icon" data-type="obstacle" width="32" height="32"></canvas>
-                                    <div><strong>彩色路障</strong><span>触碰-1生命，可被激光摧毁</span></div>
+                        <div class="custom-controls">
+                            <div class="custom-upload-box">
+                                <label class="upload-btn">📷 上传照片作为头部
+                                    <input type="file" id="headPhotoUpload" accept="image/*" hidden>
+                                </label>
+                                <p style="font-size: 12px; color: #fff; margin-top: 6px;">支持 JPG / PNG，建议头像照</p>
+                            </div>
+
+                            <div class="slider-group">
+                                <label>头部大小：<span id="headSizeVal">100</span>%</label>
+                                <input type="range" id="headSizeSlider" min="50" max="150" value="100">
+                            </div>
+
+                            <div class="slider-group">
+                                <label>眼睛大小：<span id="eyeSizeVal">10</span></label>
+                                <input type="range" id="eyeSizeSlider" min="0" max="30" value="10">
+                            </div>
+
+                            <div class="slider-group">
+                                <label>眼睛间距：<span id="eyeSpacingVal">32</span></label>
+                                <input type="range" id="eyeSpacingSlider" min="15" max="50" value="32">
+                            </div>
+
+                            <div class="color-picker-row">
+                                <label>眼睛颜色：<input type="color" id="eyeColorPicker" value="#2d3436"></label>
+                                <label>嘴巴颜色：<input type="color" id="mouthColorPicker" value="#c0392b"></label>
+                            </div>
+
+                            <div class="color-picker-row">
+                                <label>头部底色：<input type="color" id="headColor1Picker" value="#fff4d6"></label>
+                                <label>头部渐变：<input type="color" id="headColor2Picker" value="#667eea"></label>
+                            </div>
+
+                            <div class="slider-group">
+                                <label>嘴巴弧度：<span id="mouthVal">0</span>（负=不开心 正=开心）</label>
+                                <input type="range" id="mouthSlider" min="-10" max="10" value="0">
+                            </div>
+
+                            <div class="slider-group">
+                                <label>嘴巴大小：<span id="mouthSizeVal">30</span></label>
+                                <input type="range" id="mouthSizeSlider" min="10" max="50" value="30">
+                            </div>
+
+                            <div class="toggle-row">
+                                <label><input type="checkbox" id="blushToggle" checked> 腮红</label>
+                                <label>腮红颜色：<input type="color" id="blushColorPicker" value="#ff6b9d"></label>
+                            </div>
+
+                            <div class="emoji-quick-pick">
+                                <p style="color:#fff; font-weight:600; margin-bottom:6px;">装饰表情（可叠加，拖拽预览调整位置）：</p>
+                                <div class="emoji-picker-grid" id="emojiQuickPicker">
+                                    <!-- JS填充 -->
                                 </div>
                             </div>
-                        </div>
-                        <div class="instruction-section">
-                            <h3>💡 游戏技巧</h3>
-                            <ul class="tips-list">
-                                <li>激光射程为8格，可以远距离清除障碍物</li>
-                                <li>武器弹药会保存，每局累计不会清空</li>
-                                <li>障碍物会随时间出现，注意躲避或摧毁</li>
-                                <li>关卡越高，蛇移动速度越快</li>
-                            </ul>
                         </div>
                     </div>
-                    <button id="confirmStartBtn" class="btn btn-primary">确认开始</button>
+                    <button id="applyHeadBtn" class="btn btn-primary" style="margin-top: 12px;">✓ 应用此头部</button>
+                </div>
+
+                <div class="c-tab-content hidden" data-ctab="body">
+                    <h3>🎨 身体自定义</h3>
+                    <div class="body-customize-grid">
+                        <div class="custom-preview-box">
+                            <h4>实时预览</h4>
+                            <canvas id="bodyPreviewCanvas" width="240" height="180"></canvas>
+                        </div>
+                        <div class="custom-controls">
+                            <div class="preset-body-shapes">
+                                <p style="color:#fff; font-weight:600;">身体造型预设：</p>
+                                <div class="shape-grid" id="bodyShapeGrid">
+                                    <div class="shape-item selected" data-shape="round">● 圆润</div>
+                                    <div class="shape-item" data-shape="square">■ 方块</div>
+                                    <div class="shape-item" data-shape="diamond">◆ 菱形</div>
+                                    <div class="shape-item" data-shape="star">★ 星形</div>
+                                    <div class="shape-item" data-shape="heart">♥ 爱心</div>
+                                    <div class="shape-item" data-shape="flower">✿ 花瓣</div>
+                                </div>
+                            </div>
+
+                            <div class="color-palette-area">
+                                <p style="color:#fff; font-weight:600;">颜色调色盘：</p>
+                                <div class="color-palette-box">
+                                    <label>主色：
+                                        <input type="color" id="bodyColor1" value="#667eea">
+                                    </label>
+                                    <label>辅色：
+                                        <input type="color" id="bodyColor2" value="#764ba2">
+                                    </label>
+                                    <label>高光：
+                                        <input type="color" id="bodyColor3" value="#ffffff">
+                                    </label>
+                                </div>
+                                <div class="gradient-presets" id="gradientPresets">
+                                    <!-- JS填充 -->
+                                </div>
+                            </div>
+
+                            <div class="custom-upload-box">
+                                <label class="upload-btn">🖼 上传图案作为身体纹理
+                                    <input type="file" id="bodyPhotoUpload" accept="image/*" hidden>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <button id="applyBodyBtn" class="btn btn-primary" style="margin-top: 12px;">✓ 应用此身体</button>
+                </div>
+
+                <div class="c-tab-content hidden" data-ctab="skins">
+                    <h3>💾 我的皮肤库 <span id="needLoginHint" style="font-size: 12px; color: #ffeaa7;">（登录后可保存到云端）</span></h3>
+                    <div class="skin-save-bar">
+                        <input type="text" id="skinNameInput" placeholder="输入皮肤名称..." maxlength="20">
+                        <button id="saveSkinBtn" class="btn btn-primary" style="padding: 8px 20px;">💾 保存当前皮肤</button>
+                    </div>
+                    <div class="saved-skins-grid" id="savedSkinsGrid">
+                        <!-- JS填充 -->
+                    </div>
                 </div>
             </div>
 
             <div class="start-buttons">
-                <button id="playBtn" class="btn btn-primary">开始游戏</button>
-                <button id="customBtn" class="btn btn-secondary">选择形象</button>
+                <button id="customBtn" class="btn btn-secondary">🎨 自定义形象</button>
+                <button id="leaderboardBtn" class="btn btn-secondary">🏆 排行榜</button>
             </div>
-            
-            <div class="start-hints">
-                <p>🎮 操作说明</p>
-                <p>↑↓←→ / WASD: 移动 | 空格: 暂停 | J: 发射激光 | ESC: 返回封面</p>
+
+            <div class="start-hints" id="lobbyHints">
+                <p>🎮 操作提示 · 电脑：↑↓←→ / WASD 移动 · 空格 暂停 · J 射击 · ESC 返回</p>
+                <p>📱 手机端：下方方向键 + 射击按钮，支持滑动控制</p>
             </div>
         </div>
     </div>
 
+    <!-- ============ 对战大厅 ============ -->
+    <div id="battleLobbyScreen" class="start-screen hidden">
+        <div class="floating-circles">
+            <div class="circle circle1"></div><div class="circle circle2"></div><div class="circle circle3"></div>
+            <div class="circle circle4"></div><div class="circle circle5"></div><div class="circle circle6"></div><div class="circle circle7"></div>
+        </div>
+        <div class="start-content lobby-content">
+            <h1 class="game-title" style="font-size: 44px;">⚔️ 对战大厅</h1>
+
+            <div class="battle-entry-row">
+                <div class="battle-entry-card match-card">
+                    <h3>🎲 随机匹配</h3>
+                    <p>系统自动匹配2-10名玩家，即刻开战！</p>
+                    <button id="quickMatchBtn" class="btn match-btn">快速匹配</button>
+                    <p id="matchStatusText" style="font-size: 13px; margin-top: 8px; color: #ffeaa7;"></p>
+                </div>
+                <div class="battle-entry-card room-card">
+                    <h3>🏠 创建房间</h3>
+                    <p>自定义房间人数，邀请好友加入！</p>
+                    <div class="room-size-row">
+                        <label>人数：</label>
+                        <select id="maxPlayersSel">
+                            <option value="2">2人对决</option>
+                            <option value="3">3人混战</option>
+                            <option value="4">4人组队</option>
+                            <option value="5">5人大乱斗</option>
+                            <option value="6">6人战</option>
+                            <option value="8">8人战</option>
+                            <option value="10" selected>10人终极对决</option>
+                        </select>
+                    </div>
+                    <button id="createRoomBtn" class="btn btn-primary">创建房间</button>
+                </div>
+                <div class="battle-entry-card join-card">
+                    <h3>🔑 加入房间</h3>
+                    <p>输入好友分享的6位房间号</p>
+                    <input type="text" id="roomCodeInput" placeholder="房间号" maxlength="6" style="text-transform: uppercase; letter-spacing: 3px;">
+                    <button id="joinRoomBtn" class="btn btn-secondary">加入</button>
+                </div>
+            </div>
+
+            <!-- 好友列表 -->
+            <div class="friends-panel" id="friendsPanel">
+                <div class="friends-header">
+                    <h3>👫 我的好友 <span id="newInviteBadge" class="invite-badge hidden">新!</span></h3>
+                    <div class="friends-actions">
+                        <input type="text" id="friendSearchInput" placeholder="搜索用户名添加好友..." style="padding: 6px 12px; border-radius: 10px; border: 2px solid rgba(255,255,255,0.5); background: rgba(255,255,255,0.2); color: #fff; font-weight: 600;">
+                        <button id="searchFriendBtn" class="btn btn-secondary" style="padding: 8px 16px;">🔍</button>
+                        <button id="friendInviteBtn" class="btn btn-secondary" style="padding: 8px 16px;">📩 邀请</button>
+                    </div>
+                </div>
+                <div class="friends-search-results hidden" id="friendSearchResults"></div>
+                <div class="friends-list" id="friendsList">
+                    <p style="text-align: center; color: rgba(255,255,255,0.8); padding: 20px;">登录后可添加好友</p>
+                </div>
+                <div class="invites-section hidden" id="invitesSection">
+                    <h4>📬 好友邀请</h4>
+                    <div id="invitesList"></div>
+                </div>
+            </div>
+
+            <button id="backFromLobbyBtn" class="btn btn-secondary" style="margin-top: 20px;">⬅️ 返回大厅</button>
+        </div>
+    </div>
+
+    <!-- ============ 对战房间（等待 + 战斗） ============ -->
+    <div id="battleRoomScreen" class="start-screen hidden" style="align-items: flex-start; padding-top: 20px;">
+        <div class="battle-room-wrap">
+            <!-- 房间等待界面 -->
+            <div id="roomLobbyContent">
+                <h2>🏠 房间：<span id="roomCodeDisplay" class="room-code-chip">------</span></h2>
+                <p style="text-align: center; color: #fff;">将此房间号分享给好友：<strong id="shareRoomCodeText" style="color: #ffeaa7; font-size: 22px;"></strong></p>
+                <button id="copyRoomBtn" class="btn btn-secondary" style="margin: 10px auto; display: block;">📋 复制邀请链接</button>
+
+                <div class="room-players-lobby" id="roomPlayersLobby">
+                    <!-- JS 填充 -->
+                </div>
+
+                <div style="text-align: center; margin-top: 15px;">
+                    <button id="roomReadyBtn" class="btn btn-primary">准备 / 取消准备</button>
+                    <button id="startBattleBtn" class="btn match-btn" style="margin-left: 10px;">开战！（房主）</button>
+                    <button id="leaveRoomBtn" class="btn btn-secondary" style="margin-left: 10px;">🚪 离开房间</button>
+                </div>
+            </div>
+
+            <!-- 战斗进行界面 -->
+            <div id="battleGameContent" class="hidden">
+                <header class="battle-header">
+                    <div>⚔️ 对战模式 · 房间 <span id="battleRoomCode" class="room-code-chip"></span></div>
+                    <div>存活：<span id="battleAliveCount" class="alive-chip">0</span>/<span id="battleTotalCount">0</span></div>
+                    <button id="battleExitBtn" class="btn btn-secondary" style="padding: 6px 14px;">退出</button>
+                </header>
+
+                <div class="battle-area">
+                    <div class="canvas-wrapper battle-canvas-wrapper">
+                        <canvas id="battleCanvas"></canvas>
+                        <div id="battleResult" class="overlay hidden">
+                            <div class="overlay-content">
+                                <h2 id="battleResultTitle">🎉 战斗结束</h2>
+                                <p id="battleResultDesc"></p>
+                                <button id="battleBackBtn" class="btn btn-primary">返回大厅</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="side-panel battle-side-panel">
+                        <div class="panel-section">
+                            <h3>👥 玩家状态</h3>
+                            <div id="battlePlayerList" class="battle-player-list"></div>
+                        </div>
+                        <div class="panel-section">
+                            <h3>🎯 我的状态</h3>
+                            <div class="battle-my-stats">
+                                <div class="mini-stat">❤️ 生命：<span id="battleMyLives">3</span></div>
+                                <div class="mini-stat">🛡 护盾：<span id="battleMyShield">0</span></div>
+                                <div class="mini-stat">🔫 弹药：<span id="battleMyAmmo">5</span></div>
+                                <div class="mini-stat">📏 长度：<span id="battleMyLen">3</span></div>
+                            </div>
+                        </div>
+                        <div class="panel-section">
+                            <h3>📦 道具说明</h3>
+                            <div class="item-guide">
+                                <div class="item"><span class="b-item-icon b-food-normal"></span><span>普通食物 +10分</span></div>
+                                <div class="item"><span class="b-item-icon b-food-grow"></span><span>变长食物 +2节</span></div>
+                                <div class="item"><span class="b-item-icon b-food-shrink"></span><span>变短食物 -1节</span></div>
+                                <div class="item"><span class="b-item-icon b-health"></span><span>💖 生命包 +1命</span></div>
+                                <div class="item"><span class="b-item-icon b-weapon"></span><span>🔫 武器包 +5弹药</span></div>
+                                <div class="item"><span class="b-item-icon b-shield"></span><span>🛡 护盾 抵挡1次</span></div>
+                            </div>
+                            <p style="font-size: 12px; color: #636e72; margin-top: 10px; text-align: center;">💡 武器射程：8格 · 击中敌蛇 -1命</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="mobile-controls" id="battleMobileControls">
+            <div class="control-pad">
+                <div class="control-up" id="bControlUp">⬆️</div>
+                <div class="control-row">
+                    <div class="control-left" id="bControlLeft">⬅️</div>
+                    <div class="control-center" id="bControlCenter">🎮</div>
+                    <div class="control-right" id="bControlRight">➡️</div>
+                </div>
+                <div class="control-down" id="bControlDown">⬇️</div>
+            </div>
+            <div class="action-buttons">
+                <button id="bShootBtn" class="action-btn">🔫 射击</button>
+                <button id="bBackBtn" class="action-btn btn-secondary">🏠 返回</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ 个人中心 ============ -->
+    <div id="profileOverlay" class="game-start-overlay hidden">
+        <div class="start-overlay-content" style="max-width: 700px;">
+            <h2>👤 个人中心</h2>
+            <div class="profile-container">
+                <div class="profile-avatar-big">
+                    <canvas id="profileAvatarCanvas" width="120" height="120"></canvas>
+                    <p id="profileUsername" style="font-size: 24px; font-weight: 800; margin-top: 10px; background: linear-gradient(135deg, #667eea, #f093fb); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">用户</p>
+                </div>
+                <div class="profile-stats">
+                    <div class="profile-stat-row">
+                        <div class="p-stat"><div class="p-stat-num" id="pCrowns">0</div><div class="p-stat-label">👑 皇冠数</div></div>
+                        <div class="p-stat"><div class="p-stat-num" id="pWins">0</div><div class="p-stat-label">🏆 对战胜利</div></div>
+                        <div class="p-stat"><div class="p-stat-num" id="pTotalBattles">0</div><div class="p-stat-label">⚔️ 总对战</div></div>
+                    </div>
+                    <div class="profile-stat-row">
+                        <div class="p-stat"><div class="p-stat-num" id="pHighScore">0</div><div class="p-stat-label">⭐ 最高分</div></div>
+                        <div class="p-stat"><div class="p-stat-num" id="pHighLevel">1</div><div class="p-stat-label">🚀 最高关卡</div></div>
+                        <div class="p-stat"><div class="p-stat-num" id="pWinRate">0%</div><div class="p-stat-label">📈 胜率</div></div>
+                    </div>
+                </div>
+            </div>
+            <button id="closeProfileBtn" class="btn btn-secondary" style="display: block; margin: 20px auto 0;">关闭</button>
+        </div>
+    </div>
+
+    <!-- ============ 闯关游戏主界面 ============ -->
     <div id="gameContainer" class="game-container hidden">
         <header class="game-header">
-            <h1>🐍 萌蛇大觅食</h1>
+            <h1>🐍 萌蛇大觅食 · 闯关模式</h1>
             <div class="title-rank">
                 <span class="rank-title" id="rankTitle">新手探险家</span>
             </div>
@@ -198,11 +487,11 @@
                 <span class="info-item">最高关: <span id="highestLevel">1</span></span>
             </div>
         </header>
-        
+
         <div class="game-area">
             <div class="canvas-wrapper">
                 <canvas id="gameCanvas"></canvas>
-                
+
                 <div id="gameOver" class="overlay hidden">
                     <div class="overlay-content">
                         <h2>游戏结束!</h2>
@@ -210,20 +499,86 @@
                         <p>到达关卡: <span id="finalLevel">1</span></p>
                         <p class="rank-award">荣誉称号: <span id="finalRank">新手探险家</span></p>
                         <button id="restartBtn" class="btn">再来一局</button>
-                        <button id="backToMenuFromGameOverBtn" class="btn btn-secondary">返回封面</button>
+                        <button id="backToMenuFromGameOverBtn" class="btn btn-secondary">返回大厅</button>
                     </div>
                 </div>
-                
+
                 <div id="levelUp" class="overlay hidden">
                     <div class="overlay-content">
                         <h2>🎉 恭喜进入第 <span id="newLevel">2</span> 关!</h2>
                         <p>速度加快，难度提升!</p>
                         <button id="continueBtn" class="btn">继续游戏</button>
-                        <button id="backToMenuFromLevelUpBtn" class="btn btn-secondary">返回封面</button>
+                        <button id="backToMenuFromLevelUpBtn" class="btn btn-secondary">返回大厅</button>
+                    </div>
+                </div>
+
+                <!-- 游戏说明 -->
+                <div id="gameStartOverlay" class="game-start-overlay hidden" style="position: absolute; border-radius: 28px;">
+                    <div class="start-overlay-content">
+                        <h2>🎮 闯关模式说明</h2>
+                        <div class="instructions">
+                            <div class="instruction-section">
+                                <h3>🎯 操作指南</h3>
+                                <div class="instruction-grid">
+                                    <div class="instruction-item"><strong>↑↓←→</strong> 或 <strong>WASD</strong><span>控制小蛇移动方向</span></div>
+                                    <div class="instruction-item"><strong>空格键</strong><span>暂停/继续游戏</span></div>
+                                    <div class="instruction-item"><strong>J 键</strong><span>发射激光武器（射程8格）</span></div>
+                                    <div class="instruction-item"><strong>ESC 键</strong><span>返回游戏大厅</span></div>
+                                </div>
+                                <div class="mobile-instruction-box">
+                                    <h4>📱 手机端操作（触屏）</h4>
+                                    <div class="mobile-instruction-grid">
+                                        <div class="mobile-instruction-item"><span class="mobile-icon">🕹️</span><div><strong>虚拟方向键</strong><span>点击屏幕下方 ⬆️⬇️⬅️➡️ 控制方向</span></div></div>
+                                        <div class="mobile-instruction-item"><span class="mobile-icon">👆</span><div><strong>滑动转向</strong><span>在游戏画面上滑动手指快速改变方向</span></div></div>
+                                        <div class="mobile-instruction-item"><span class="mobile-icon">🔫</span><div><strong>射击按钮</strong><span>点击右下角"🔫 射击"按钮发射激光</span></div></div>
+                                        <div class="mobile-instruction-item"><span class="mobile-icon">⏸️</span><div><strong>暂停/返回</strong><span>点击"⏸ 暂停"或"🏠 返回"按钮</span></div></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="instruction-section">
+                                <h3>📦 道具说明</h3>
+                                <div class="instruction-grid">
+                                    <div class="instruction-item">
+                                        <canvas class="instruction-icon" data-type="normal-food" width="32" height="32"></canvas>
+                                        <div><strong>普通食物</strong><span>🍏 绿色，+10分</span></div>
+                                    </div>
+                                    <div class="instruction-item">
+                                        <canvas class="instruction-icon" data-type="grow-food" width="32" height="32"></canvas>
+                                        <div><strong>变大食物</strong><span>🫐 蓝色，蛇身+2节</span></div>
+                                    </div>
+                                    <div class="instruction-item">
+                                        <canvas class="instruction-icon" data-type="shrink-food" width="32" height="32"></canvas>
+                                        <div><strong>变小食物</strong><span>🍓 红色，蛇身-1节</span></div>
+                                    </div>
+                                    <div class="instruction-item">
+                                        <canvas class="instruction-icon" data-type="health" width="32" height="32"></canvas>
+                                        <div><strong>生命包</strong><span>💖 +1生命值</span></div>
+                                    </div>
+                                    <div class="instruction-item">
+                                        <canvas class="instruction-icon" data-type="weapon" width="32" height="32"></canvas>
+                                        <div><strong>武器包</strong><span>🔫 +5弹药</span></div>
+                                    </div>
+                                    <div class="instruction-item">
+                                        <canvas class="instruction-icon" data-type="obstacle" width="32" height="32"></canvas>
+                                        <div><strong>晶石路障</strong><span>💎 触碰-1生命，可被激光摧毁</span></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="instruction-section">
+                                <h3>💡 游戏技巧</h3>
+                                <ul class="tips-list">
+                                    <li>激光射程为8格，可以远距离清除晶石路障</li>
+                                    <li>武器弹药会保存，每局累计不会清空</li>
+                                    <li>晶石路障会随时间刷新，注意躲避或摧毁</li>
+                                    <li>关卡越高，蛇移动速度越快</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <button id="confirmStartBtn" class="btn btn-primary">确认开始</button>
                     </div>
                 </div>
             </div>
-            
+
             <div class="side-panel">
                 <div class="panel-section">
                     <h3>❤️ 生命值</h3>
@@ -232,7 +587,7 @@
                     </div>
                     <div class="health-text">剩余: <span id="healthText">10</span>/10</div>
                 </div>
-                
+
                 <div class="panel-section">
                     <h3>🎯 武器弹药</h3>
                     <div id="weaponDisplay">
@@ -240,17 +595,17 @@
                         <span id="weaponAmmo">0</span>
                     </div>
                 </div>
-                
+
                 <div class="panel-section">
                     <h3>🎮 操作说明</h3>
                     <ul>
                         <li>↑↓←→ / WASD: 移动</li>
                         <li>空格: 暂停</li>
                         <li>J: 发射激光</li>
-                        <li>ESC: 返回封面</li>
+                        <li>ESC: 返回大厅</li>
                     </ul>
                 </div>
-                
+
                 <div class="panel-section">
                     <h3>📦 道具说明</h3>
                     <div class="item-guide">
@@ -259,11 +614,11 @@
                         <div class="item"><canvas class="item-icon" data-type="shrink-food" width="32" height="32"></canvas><span>变小食物 -1节</span></div>
                         <div class="item"><canvas class="item-icon" data-type="health" width="32" height="32"></canvas><span>生命包 +1生命</span></div>
                         <div class="item"><canvas class="item-icon" data-type="weapon" width="32" height="32"></canvas><span>武器包 +5弹药</span></div>
-                        <div class="item"><canvas class="item-icon" data-type="obstacle" width="32" height="32"></canvas><span>彩色路障 -1生命</span></div>
+                        <div class="item"><canvas class="item-icon" data-type="obstacle" width="32" height="32"></canvas><span>晶石路障 -1生命</span></div>
                     </div>
                     <p style="font-size: 12px; color: #636e72; margin-top: 10px; text-align: center;">💡 武器射程：8格</p>
                 </div>
-                
+
                 <div class="panel-section">
                     <h3>📊 关卡选择</h3>
                     <div id="levelSelect">
@@ -273,11 +628,27 @@
                     </div>
                     <button id="startBtn" class="btn btn-primary">开始游戏</button>
                     <button id="pauseBtn" class="btn">暂停</button>
-                    <button id="backToMenuBtn" class="btn btn-secondary">返回封面</button>
+                    <button id="backToMenuBtn" class="btn btn-secondary">返回大厅</button>
+                </div>
+            </div>
+
+            <div class="mobile-controls" id="adventureMobileControls">
+                <div class="control-pad">
+                    <div class="control-up" id="aControlUp">⬆️</div>
+                    <div class="control-row">
+                        <div class="control-left" id="aControlLeft">⬅️</div>
+                        <div class="control-center" id="aControlCenter">🎮</div>
+                        <div class="control-right" id="aControlRight">➡️</div>
+                    </div>
+                    <div class="control-down" id="aControlDown">⬇️</div>
+                </div>
+                <div class="action-buttons">
+                    <button id="aShootBtn" class="action-btn">🔫 射击</button>
+                    <button id="aPauseBtn" class="action-btn btn-secondary">⏸ 暂停</button>
                 </div>
             </div>
         </div>
-        
+
         <div class="mobile-controls" id="mobileControls">
             <div class="control-pad">
                 <div class="control-up" id="controlUp">⬆️</div>
@@ -293,12 +664,12 @@
                 <button id="backToMenuFromMobileBtn" class="action-btn btn-secondary">🏠 返回</button>
             </div>
         </div>
-        
+
         <footer class="game-footer">
             <p>上次记录: 第 <span id="lastLevel">1</span> 关 | 历史最高分: <span id="highScore">0</span></p>
         </footer>
     </div>
-    
+
     <script src="script.js"></script>
 </body>
 </html>
