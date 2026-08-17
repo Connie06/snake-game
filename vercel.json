@@ -1,0 +1,22 @@
+{
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/index.js" },
+    { "source": "/", "destination": "/index.html" },
+    { "source": "/((?!api/|_vercel/|static/|favicon.ico).*)", "destination": "/$1" }
+  ],
+  "functions": {
+    "api/index.js": {
+      "includeFiles": "server.js"
+    }
+  },
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "Access-Control-Allow-Methods", "value": "GET,POST,PUT,DELETE,OPTIONS" },
+        { "key": "Access-Control-Allow-Headers", "value": "Content-Type" }
+      ]
+    }
+  ]
+}
