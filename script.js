@@ -51,12 +51,14 @@ const EMOJI_QUICK_PICKS = ['👀','😄','😊','😎','🤩','😍','😋','�
 const Adventure = {
   canvas: null, ctx: null,
   snake: [], direction: {x:1,y:0}, nextDirection: {x:1,y:0},
-  foods: [], obstacles: [], powerups: [], lasers: [], explosions: [], particles: [],
+  foods: [], obstacles: [], powerups: [], lasers: [], explosions: [], particles: [], floatingTexts: [],
   score: 0, level: 1, lives: 10, maxLives: 10, ammo: 5,
   highestLevel: 1, totalScore: 0,
   running: false, paused: false, gameOver: false,
   loopTimer: null,
-  speedBase: 180
+  speedBase: 180,
+  combo: 0, comboTimer: 0, shieldActive: false, shieldTimer: 0,
+  stars: [] // 动态星空背景
 };
 
 const Battle = {
@@ -175,24 +177,32 @@ function drawSnakeBody(ctx, x, y, gx, gy, index, total, skin) {
   ctx.save();
   ctx.translate(cx, cy);
 
+  // ===== 外发光描边（霓虹灯效果）=====
+  const glowColor = col1;
+  ctx.shadowColor = glowColor;
+  ctx.shadowBlur = 14;
+
   let fillStyle;
   if (skin.bodyPattern === 'photo' && skin.bodyPhotoData) {
     fillStyle = ctx.createRadialGradient(0,0,2, 0,0,r);
     fillStyle.addColorStop(0, lightenColor(col, 20));
     fillStyle.addColorStop(1, col);
   } else {
-    fillStyle = ctx.createRadialGradient(-r*0.35, -r*0.35, 2, 0, 0, r);
-    fillStyle.addColorStop(0, lightenColor(col, 30));
-    fillStyle.addColorStop(0.55, col);
-    fillStyle.addColorStop(1, darkenColor(col, 18));
+    // ===== 3D立体渐变：左上高光 + 右侧反光 + 底部阴影 =====
+    fillStyle = ctx.createRadialGradient(-r*0.42, -r*0.42, 1.5, 0, 0, r);
+    fillStyle.addColorStop(0,    lightenColor(col, 45));  // 顶点高光
+    fillStyle.addColorStop(0.18, lightenColor(col, 25));  // 高光过渡
+    fillStyle.addColorStop(0.55, col);                    // 主色调
+    fillStyle.addColorStop(0.82, darkenColor(col, 12));   // 侧面反光
+    fillStyle.addColorStop(1,    darkenColor(col, 30));   // 底部阴影
   }
 
   ctx.fillStyle = fillStyle;
-  ctx.strokeStyle = darkenColor(col, 30);
-  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = darkenColor(col, 40);
+  ctx.lineWidth = 2;
 
   switch (skin.bodyShape) {
-    case 'square':   roundedRect(ctx, -r, -r, r*2, r*2, 5); break;
+    case 'square':   roundedRect(ctx, -r, -r, r*2, r*2, 6); break;
     case 'diamond':  drawDiamond(ctx, r); break;
     case 'star':     drawStar(ctx, 0, 0, 5, r, r*0.5); break;
     case 'heart':    drawHeart(ctx, r*0.9); break;
@@ -201,14 +211,43 @@ function drawSnakeBody(ctx, x, y, gx, gy, index, total, skin) {
       ctx.beginPath();
       ctx.arc(0, 0, r, 0, Math.PI*2);
   }
-  ctx.fill(); ctx.stroke();
+  ctx.fill();
+  ctx.shadowBlur = 0;  // 描边时关闭发光避免过曝
+  ctx.stroke();
 
-  ctx.fillStyle = 'rgba(255,255,255,0.45)';
+  // ===== 两处高光：圆形主高光 + 细条副高光 =====
+  ctx.fillStyle = 'rgba(255,255,255,0.7)';
   ctx.beginPath();
-  ctx.arc(-r*0.35, -r*0.35, r*0.28, 0, Math.PI*2);
+  ctx.arc(-r*0.38, -r*0.38, r*0.30, 0, Math.PI*2);
+  ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.32)';
+  ctx.beginPath();
+  ctx.ellipse(r*0.22, r*0.32, r*0.22, r*0.10, 0.4, 0, Math.PI*2);
   ctx.fill();
 
+  // ===== 每隔3节加一条鳞片花纹，增强视觉层级 =====
+  if (index % 3 === 0 && index > 0) {
+    ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(0, 0, r*0.5, 0, Math.PI*2);
+    ctx.stroke();
+  }
+
   ctx.restore();
+
+  // ===== 蛇身粒子拖尾（每节尾部飘几颗小光点）=====
+  if (Math.random() < 0.18 && index > 1) {
+    Adventure.particles.push({
+      x: cx + (Math.random()-0.5)*r,
+      y: cy + (Math.random()-0.5)*r,
+      vx: (Math.random()-0.5)*0.8,
+      vy: (Math.random()-0.5)*0.8,
+      life: 0.9,
+      size: 1.8 + Math.random()*1.6,
+      color: col1
+    });
+  }
 }
 
 function drawSnakeHead(ctx, x, y, skin, direction) {
@@ -225,39 +264,72 @@ function drawSnakeHead(ctx, x, y, skin, direction) {
   const scale = (skin.headDiy?.size || 100) / 100;
   ctx.scale(scale, scale);
 
+  // ===== 蛇头外发光描边 =====
+  const r = GRID_SIZE/2 - 2;
+  ctx.shadowColor = skin.bodyColor1 || '#667eea';
+  ctx.shadowBlur = 18;
+
   if (skin.headType === 'photo' && skin.headPhotoData) {
     const img = getCachedImage(skin.headPhotoData);
     if (img && img.complete) {
       ctx.save();
       ctx.beginPath();
-      ctx.arc(0,0,GRID_SIZE/2-2,0,Math.PI*2);
+      ctx.arc(0,0,r,0,Math.PI*2);
       ctx.clip();
       ctx.drawImage(img, -GRID_SIZE/2, -GRID_SIZE/2, GRID_SIZE, GRID_SIZE);
       ctx.restore();
-      ctx.strokeStyle = 'rgba(255,215,0,0.9)';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(0,0,GRID_SIZE/2-2,0,Math.PI*2);
-      ctx.stroke();
+      // 金色光环边
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = 'rgba(255,215,0,0.95)';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.arc(0,0,r,0,Math.PI*2); ctx.stroke();
     } else {
       drawDiyHead(ctx, skin);
     }
   } else if (skin.headType === 'diy') {
     drawDiyHead(ctx, skin);
   } else {
-    const r = GRID_SIZE/2 - 2;
-    const bg = ctx.createRadialGradient(-r*0.3,-r*0.3,2,0,0,r);
-    bg.addColorStop(0, skin.bodyColor3 || '#ffffff');
-    bg.addColorStop(0.6, lightenColor(skin.bodyColor1, 10));
-    bg.addColorStop(1, skin.bodyColor2);
+    const bg = ctx.createRadialGradient(-r*0.35,-r*0.35,2,0,0,r);
+    bg.addColorStop(0, lightenColor(skin.bodyColor3 || '#ffffff', 25));
+    bg.addColorStop(0.22, skin.bodyColor3 || '#ffffff');
+    bg.addColorStop(0.58, lightenColor(skin.bodyColor1, 12));
+    bg.addColorStop(0.85, skin.bodyColor1);
+    bg.addColorStop(1, darkenColor(skin.bodyColor2, 15));
     ctx.fillStyle = bg;
-    ctx.strokeStyle = darkenColor(skin.bodyColor2, 25);
-    ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.arc(0,0,r,0,Math.PI*2); ctx.fill(); ctx.stroke();
-    ctx.font = `${Math.floor(GRID_SIZE*0.82)}px "Segoe UI Emoji", "Apple Color Emoji", sans-serif`;
+    ctx.strokeStyle = darkenColor(skin.bodyColor2, 30);
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(0,0,r,0,Math.PI*2); ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.stroke();
+
+    // 两处高光
+    ctx.fillStyle = 'rgba(255,255,255,0.65)';
+    ctx.beginPath(); ctx.arc(-r*0.4, -r*0.4, r*0.3, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.28)';
+    ctx.beginPath(); ctx.ellipse(r*0.2, r*0.3, r*0.22, r*0.1, 0.4, 0, Math.PI*2); ctx.fill();
+
+    // Emoji 头部
+    ctx.shadowBlur = 0;
+    ctx.font = `${Math.floor(GRID_SIZE*0.88)}px "Segoe UI Emoji", "Apple Color Emoji", sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(skin.headEmoji || '🐍', 0, 1);
+  }
+
+  // ===== 护盾光环（如果激活）=====
+  if (Adventure.shieldActive) {
+    ctx.shadowBlur = 0;
+    const pulse = 1 + Math.sin(Date.now()/150)*0.08;
+    ctx.strokeStyle = `rgba(162,155,254,${0.7 + Math.sin(Date.now()/120)*0.3})`;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(0, 0, (r+6)*pulse, 0, Math.PI*2);
+    ctx.stroke();
+    ctx.strokeStyle = `rgba(255,234,167,${0.5 + Math.sin(Date.now()/100)*0.3})`;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(0, 0, (r+10)*pulse, 0, Math.PI*2);
+    ctx.stroke();
   }
 
   ctx.restore();
@@ -343,91 +415,175 @@ function drawDiyHead(ctx, skin) {
 function drawItem(ctx, x, y, type) {
   const cx = x + GRID_SIZE/2, cy = y + GRID_SIZE/2;
   const r = GRID_SIZE/2 - 3;
-  const t = Date.now() / 500;
-  const bob = Math.sin(t) * 1.5;
+  const t = Date.now() / 400;
+  const bob = Math.sin(t) * 1.8;
   ctx.save();
   ctx.translate(cx, cy + bob);
+
+  // ===== 道具统一外发光 =====
+  let glowColor = '#ffeaa7';
+  if (type === 'food_normal') glowColor = '#55efc4';
+  else if (type === 'food_grow') glowColor = '#a29bfe';
+  else if (type === 'food_shrink') glowColor = '#fd79a8';
+  else if (type === 'health') glowColor = '#fd79a8';
+  else if (type === 'weapon') glowColor = '#74b9ff';
+  else if (type === 'shield') glowColor = '#a29bfe';
+  else if (type === 'treasure') glowColor = '#f9ca24';
+  ctx.shadowColor = glowColor;
+  ctx.shadowBlur = 16;
+
   switch (type) {
+    // ===== 青苹果（普通食物）=====
     case 'food_normal': {
-      const g = ctx.createRadialGradient(-r*0.3,-r*0.4,2, 0,0,r);
-      g.addColorStop(0,'#b8ffb0'); g.addColorStop(0.5,'#55efc4'); g.addColorStop(1,'#00b894');
-      ctx.fillStyle = g; ctx.strokeStyle = '#00876b'; ctx.lineWidth = 1.5;
-      ctx.beginPath(); ctx.arc(0, r*0.08, r*0.88, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+      const g = ctx.createRadialGradient(-r*0.35,-r*0.45,2, 0,0,r);
+      g.addColorStop(0,'#d4ffcc'); g.addColorStop(0.45,'#55efc4'); g.addColorStop(1,'#00b894');
+      ctx.fillStyle = g; ctx.strokeStyle = '#00795f'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(0, r*0.08, r*0.88, 0, Math.PI*2); ctx.fill();
+      ctx.shadowBlur = 0; ctx.stroke();
+      // 叶子
       ctx.fillStyle = '#00b894'; ctx.beginPath();
-      ctx.ellipse(r*0.15, -r*0.7, r*0.25, r*0.15, -0.5, 0, Math.PI*2); ctx.fill();
+      ctx.ellipse(r*0.18, -r*0.72, r*0.28, r*0.14, -0.4, 0, Math.PI*2); ctx.fill();
       ctx.strokeStyle = '#6d4c41'; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.moveTo(0,-r*0.78); ctx.lineTo(0,-r*0.55); ctx.stroke();
-      ctx.fillStyle = 'rgba(255,255,255,0.55)';
-      ctx.beginPath(); ctx.arc(-r*0.35, -r*0.2, r*0.2, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(0,-r*0.78); ctx.lineTo(0,-r*0.52); ctx.stroke();
+      // 高光
+      ctx.fillStyle = 'rgba(255,255,255,0.62)';
+      ctx.beginPath(); ctx.arc(-r*0.38, -r*0.2, r*0.22, 0, Math.PI*2); ctx.fill();
       break;
     }
+    // ===== 六角星芒变大果 =====
     case 'food_grow': {
+      ctx.rotate(t*0.2);
       const g = ctx.createRadialGradient(-r*0.3,-r*0.3,2, 0,0,r);
-      g.addColorStop(0,'#a29bfe'); g.addColorStop(0.55,'#6c5ce7'); g.addColorStop(1,'#4834d4');
-      ctx.fillStyle = g; ctx.strokeStyle = '#2d1b80'; ctx.lineWidth = 1.5;
-      drawStar(ctx, 0, 0, 6, r*0.95, r*0.52); ctx.fill(); ctx.stroke();
-      ctx.fillStyle = '#ffeaa7'; ctx.font = `${Math.floor(r)}px sans-serif`;
+      g.addColorStop(0,'#e4d9ff'); g.addColorStop(0.45,'#a29bfe'); g.addColorStop(0.75,'#6c5ce7'); g.addColorStop(1,'#4834d4');
+      ctx.fillStyle = g; ctx.strokeStyle = '#ffeaa7'; ctx.lineWidth = 2;
+      drawStar(ctx, 0, 0, 6, r*0.98, r*0.5); ctx.fill();
+      ctx.shadowBlur = 0; ctx.stroke();
+      // 中心闪亮加号
+      ctx.shadowColor = '#ffeaa7'; ctx.shadowBlur = 8;
+      ctx.fillStyle = '#fff'; ctx.font = `bold ${Math.floor(r*1.05)}px sans-serif`;
       ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('+', 0, 1);
       break;
     }
+    // ===== 爱心瘦身果 =====
     case 'food_shrink': {
-      const g = ctx.createRadialGradient(-r*0.3,-r*0.4,2, 0,0,r);
-      g.addColorStop(0,'#ffb8c4'); g.addColorStop(0.5,'#ff6b9d'); g.addColorStop(1,'#c44569');
+      ctx.rotate(Math.sin(t*0.6)*0.08);
+      const g = ctx.createRadialGradient(-r*0.35,-r*0.45,2, 0,0,r);
+      g.addColorStop(0,'#ffd2db'); g.addColorStop(0.5,'#ff6b9d'); g.addColorStop(1,'#c44569');
       ctx.fillStyle = g; ctx.strokeStyle = '#8b2a48'; ctx.lineWidth = 1.5;
-      drawHeart(ctx, r*1.0); ctx.fill(); ctx.stroke();
+      drawHeart(ctx, r*1.02); ctx.fill();
+      ctx.shadowBlur = 0; ctx.stroke();
+      // 绿叶
       ctx.fillStyle = '#2ed573'; ctx.beginPath();
-      ctx.moveTo(-r*0.4, -r*0.5); ctx.lineTo(0, -r*0.85); ctx.lineTo(r*0.4, -r*0.5); ctx.closePath(); ctx.fill();
-      ctx.fillStyle = '#fff'; ctx.fillRect(-r*0.35, -r*0.05, r*0.7, r*0.15);
+      ctx.moveTo(-r*0.42, -r*0.52); ctx.lineTo(0, -r*0.9); ctx.lineTo(r*0.42, -r*0.52); ctx.closePath(); ctx.fill();
+      // 高光
+      ctx.fillStyle = 'rgba(255,255,255,0.6)';
+      ctx.beginPath(); ctx.ellipse(-r*0.3, -r*0.1, r*0.2, r*0.12, -0.5, 0, Math.PI*2); ctx.fill();
       break;
     }
+    // ===== 生命之心（脉动+十字）=====
     case 'health': {
-      const pulse = 1 + Math.sin(t*3)*0.05;
+      const pulse = 1 + Math.sin(t*3)*0.08;
       ctx.save(); ctx.scale(pulse, pulse);
-      const g = ctx.createRadialGradient(-r*0.3,-r*0.3,2, 0,0,r);
-      g.addColorStop(0,'#fff0f5'); g.addColorStop(0.5,'#fd79a8'); g.addColorStop(1,'#e84393');
+      const g = ctx.createRadialGradient(-r*0.3,-r*0.35,2, 0,0,r);
+      g.addColorStop(0,'#fff0f5'); g.addColorStop(0.5,'#ff6b9d'); g.addColorStop(1,'#e84393');
       ctx.fillStyle = g; ctx.strokeStyle = '#a5306e'; ctx.lineWidth = 1.5;
-      drawHeart(ctx, r*1.1); ctx.fill(); ctx.stroke();
-      ctx.fillStyle = '#fff'; ctx.font = `bold ${Math.floor(r*0.9)}px sans-serif`;
-      ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('+', 0, r*0.1);
+      drawHeart(ctx, r*1.12); ctx.fill();
+      ctx.shadowBlur = 0; ctx.stroke();
+      // 白色十字
+      ctx.shadowColor = '#fff'; ctx.shadowBlur = 8;
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(-r*0.08, -r*0.45, r*0.16, r*0.9);
+      ctx.fillRect(-r*0.45, -r*0.08, r*0.9, r*0.16);
       ctx.restore();
       break;
     }
+    // ===== 激光武器（酷炫转轮手枪）=====
     case 'weapon': {
-      ctx.rotate(Math.sin(t)*0.08);
+      ctx.rotate(Math.sin(t*0.6)*0.1 - 0.15);
       const g = ctx.createLinearGradient(-r, -r, r, r);
       g.addColorStop(0,'#74b9ff'); g.addColorStop(0.5,'#0984e3'); g.addColorStop(1,'#fdcb6e');
-      ctx.fillStyle = g; ctx.strokeStyle = '#2d3436'; ctx.lineWidth = 1.5;
-      roundedRect(ctx, -r*0.85, -r*0.7, r*1.7, r*1.4, 6); ctx.fill(); ctx.stroke();
-      ctx.fillStyle = '#fff'; ctx.font = `bold ${Math.floor(r*1.2)}px "Segoe UI Emoji"`;
-      ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('🔫', 0, 1);
+      ctx.fillStyle = g; ctx.strokeStyle = '#2d3436'; ctx.lineWidth = 1.8;
+      roundedRect(ctx, -r*0.9, -r*0.6, r*1.8, r*1.2, 6); ctx.fill();
+      ctx.shadowBlur = 0; ctx.stroke();
+      // 枪管
+      ctx.fillStyle = '#2d3436';
+      roundedRect(ctx, r*0.4, -r*0.22, r*0.6, r*0.44, 2); ctx.fill();
+      // 瞄准镜
+      ctx.fillStyle = '#ffeaa7';
+      ctx.beginPath(); ctx.arc(-r*0.35, -r*0.55, r*0.18, 0, Math.PI*2); ctx.fill();
+      ctx.strokeStyle = '#e17055'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(-r*0.35, -r*0.55, r*0.18, 0, Math.PI*2); ctx.stroke();
       break;
     }
+    // ===== 紫色护盾（钻石切面+脉动）=====
     case 'shield': {
+      const pulse = 1 + Math.sin(t*2)*0.05;
+      ctx.save(); ctx.scale(pulse, pulse);
       const g = ctx.createRadialGradient(0,-r*0.3,2, 0,0,r);
-      g.addColorStop(0,'#f5e1ff'); g.addColorStop(0.5,'#a29bfe'); g.addColorStop(1,'#6c5ce7');
+      g.addColorStop(0,'#ffffff'); g.addColorStop(0.3,'#f5e1ff'); g.addColorStop(0.65,'#a29bfe'); g.addColorStop(1,'#6c5ce7');
       ctx.fillStyle = g; ctx.strokeStyle = '#ffeaa7'; ctx.lineWidth = 2.5;
       ctx.beginPath();
-      ctx.moveTo(0,-r*0.95);
-      ctx.lineTo(r*0.85,-r*0.65);
-      ctx.lineTo(r*0.85, r*0.15);
-      ctx.lineTo(0, r*0.95);
-      ctx.lineTo(-r*0.85, r*0.15);
-      ctx.lineTo(-r*0.85,-r*0.65);
-      ctx.closePath(); ctx.fill(); ctx.stroke();
-      ctx.fillStyle = '#ffeaa7'; ctx.font = `bold ${Math.floor(r)}px sans-serif`;
-      ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('✦', 0, 0);
+      ctx.moveTo(0,-r);
+      ctx.lineTo(r*0.86,-r*0.62);
+      ctx.lineTo(r*0.86, r*0.15);
+      ctx.lineTo(0, r*0.98);
+      ctx.lineTo(-r*0.86, r*0.15);
+      ctx.lineTo(-r*0.86,-r*0.62);
+      ctx.closePath(); ctx.fill();
+      ctx.shadowBlur = 0; ctx.stroke();
+      // 切面反光线
+      ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(0,-r); ctx.lineTo(0, r*0.98);
+      ctx.moveTo(-r*0.86, -r*0.25); ctx.lineTo(r*0.86, -r*0.25);
+      ctx.stroke();
+      // 中心宝石
+      ctx.fillStyle = '#ffeaa7';
+      drawStar(ctx, 0, 0, 4, r*0.32, r*0.12); ctx.fill();
+      ctx.restore();
       break;
     }
+    // ===== 宝箱（新增）=====
+    case 'treasure': {
+      const shake = Math.sin(t*5)*0.03;
+      ctx.rotate(shake);
+      // 箱体
+      const g = ctx.createLinearGradient(0, -r*0.6, 0, r*0.6);
+      g.addColorStop(0,'#f9ca24'); g.addColorStop(0.5,'#f0932b'); g.addColorStop(1,'#d35400');
+      ctx.fillStyle = g; ctx.strokeStyle = '#7f4a00'; ctx.lineWidth = 2;
+      roundedRect(ctx, -r*0.8, -r*0.2, r*1.6, r*0.9, 5); ctx.fill(); ctx.shadowBlur = 0; ctx.stroke();
+      // 盖子
+      ctx.shadowColor = glowColor; ctx.shadowBlur = 14;
+      const g2 = ctx.createLinearGradient(0, -r*0.8, 0, 0);
+      g2.addColorStop(0,'#ffd86b'); g2.addColorStop(1,'#e67e22');
+      ctx.fillStyle = g2;
+      ctx.beginPath();
+      ctx.moveTo(-r*0.85, -r*0.15);
+      ctx.quadraticCurveTo(0, -r*1.05, r*0.85, -r*0.15);
+      ctx.closePath(); ctx.fill();
+      ctx.shadowBlur = 0; ctx.strokeStyle = '#7f4a00'; ctx.lineWidth = 2; ctx.stroke();
+      // 金锁
+      ctx.fillStyle = '#f9ca24'; ctx.strokeStyle = '#7f4a00'; ctx.lineWidth = 1.5;
+      roundedRect(ctx, -r*0.15, -r*0.1, r*0.3, r*0.35, 3); ctx.fill(); ctx.stroke();
+      // 闪光
+      ctx.fillStyle = '#fff';
+      ctx.beginPath(); ctx.arc(r*0.55, -r*0.55, r*0.08, 0, Math.PI*2); ctx.fill();
+      break;
+    }
+    // ===== 蓝色菱形障碍物 =====
     case 'obstacle': {
       const g = ctx.createLinearGradient(-r, -r, r, r);
-      g.addColorStop(0,'#81ecec'); g.addColorStop(0.4,'#00cec9'); g.addColorStop(1,'#0984e3');
-      ctx.fillStyle = g; ctx.strokeStyle = '#2d3436'; ctx.lineWidth = 1.5;
-      drawDiamond(ctx, r*0.95); ctx.fill(); ctx.stroke();
+      g.addColorStop(0,'#a4f3f3'); g.addColorStop(0.35,'#00cec9'); g.addColorStop(0.75,'#00b4db'); g.addColorStop(1,'#0984e3');
+      ctx.fillStyle = g; ctx.strokeStyle = '#0a3d62'; ctx.lineWidth = 2;
+      drawDiamond(ctx, r*0.98); ctx.fill();
+      ctx.shadowBlur = 0; ctx.stroke();
+      // 内部分割线
       ctx.strokeStyle = 'rgba(255,255,255,0.85)'; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(0,-r*0.9); ctx.lineTo(0, r*0.9);
-      ctx.moveTo(-r*0.8, 0); ctx.lineTo(r*0.8, 0); ctx.stroke();
-      ctx.fillStyle = 'rgba(255,255,255,0.6)';
-      ctx.beginPath(); ctx.moveTo(-r*0.2, -r*0.5); ctx.lineTo(-r*0.05, -r*0.7); ctx.lineTo(r*0.15, -r*0.3); ctx.lineTo(0, -r*0.1); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(0,-r*0.92); ctx.lineTo(0, r*0.92);
+      ctx.moveTo(-r*0.82, 0); ctx.lineTo(r*0.82, 0); ctx.stroke();
+      // 大高光
+      ctx.fillStyle = 'rgba(255,255,255,0.7)';
+      ctx.beginPath(); ctx.moveTo(-r*0.25, -r*0.55); ctx.lineTo(-r*0.08, -r*0.78); ctx.lineTo(r*0.18, -r*0.3); ctx.lineTo(0, -r*0.12); ctx.closePath(); ctx.fill();
       break;
     }
   }
@@ -981,8 +1137,14 @@ function resetAdventure() {
   Adventure.lasers = [];
   Adventure.explosions = [];
   Adventure.particles = [];
+  Adventure.floatingTexts = [];
+  Adventure.combo = 0;
+  Adventure.comboTimer = 0;
+  Adventure.shieldActive = false;
+  Adventure.shieldTimer = 0;
   Adventure.gameOver = false;
   Adventure.paused = false;
+  initStars();
   spawnLevelItems();
   updateAdventureHUD();
 }
@@ -1026,6 +1188,29 @@ function spawnPowerup(type) {
   const p = randomEmptyTile();
   Adventure.powerups.push({ type, x: p.x, y: p.y });
 }
+// ===== 每步更新连击倒计时 + 护盾倒计时 =====
+function tickTimers(dt) {
+  if (Adventure.comboTimer > 0) {
+    Adventure.comboTimer -= dt;
+    if (Adventure.comboTimer <= 0) { Adventure.comboTimer = 0; Adventure.combo = 0; }
+  }
+  if (Adventure.shieldActive) {
+    Adventure.shieldTimer -= dt;
+    if (Adventure.shieldTimer <= 0) { Adventure.shieldActive = false; Adventure.shieldTimer = 0; }
+  }
+}
+
+// ===== 触发连击：+1 连击，返回连击倍率（combo>=5有奖励）=====
+function triggerCombo() {
+  Adventure.combo++;
+  Adventure.comboTimer = 2500; // 2.5秒内必须再得分
+  let multiplier = 1;
+  if (Adventure.combo >= 10) multiplier = 3;
+  else if (Adventure.combo >= 7) multiplier = 2.2;
+  else if (Adventure.combo >= 5) multiplier = 1.6;
+  else if (Adventure.combo >= 3) multiplier = 1.2;
+  return multiplier;
+}
 
 function shootAdventure() {
   if (Adventure.ammo <= 0 || Adventure.paused || Adventure.gameOver) return;
@@ -1053,29 +1238,67 @@ function shootAdventure() {
     const o = Adventure.obstacles[hitObstacle];
     Adventure.explosions.push(createExplosion(o.x, o.y));
     Adventure.obstacles.splice(hitObstacle, 1);
+    // 射击障碍得分 + 飘字
+    const mult = triggerCombo();
+    const gain = Math.round(8 * mult);
+    Adventure.score += gain;
+    addFloatingText((o.x+0.5)*GRID_SIZE, (o.y+0.5)*GRID_SIZE, `+${gain}`, '#74b9ff', 18);
+    if (Adventure.combo >= 5 && Adventure.combo % 5 === 0) {
+      addFloatingText((o.x+0.5)*GRID_SIZE, (o.y+0.3)*GRID_SIZE, `COMBO x${Adventure.combo}!`, '#fdcb6e', 22, true);
+    }
   }
   updateAdventureHUD();
 }
 
 function updateAdventureStep() {
   if (Adventure.paused || Adventure.gameOver) return;
+  // 护盾/连击计时按步长更新
+  tickTimers(Math.max(60, Adventure.speedBase - (Adventure.level-1)*12));
+
   Adventure.direction = Adventure.nextDirection;
   const head = Adventure.snake[0];
   const newHead = { x: head.x + Adventure.direction.x, y: head.y + Adventure.direction.y };
 
   if (newHead.x < 0 || newHead.x >= TILE_COUNT || newHead.y < 0 || newHead.y >= TILE_COUNT) {
-    damageAdventure(1, '撞墙了！');
+    if (Adventure.shieldActive) {
+      // 护盾挡一次撞墙
+      Adventure.shieldActive = false; Adventure.shieldTimer = 0;
+      addFloatingText((newHead.x+0.5)*GRID_SIZE, (newHead.y+0.5)*GRID_SIZE, '🛡 护盾挡下!', '#a29bfe', 20, true);
+      // 反向放置到安全区
+      const safeX = Math.max(0, Math.min(TILE_COUNT-1, head.x - Adventure.direction.x));
+      const safeY = Math.max(0, Math.min(TILE_COUNT-1, head.y - Adventure.direction.y));
+      Adventure.snake.unshift({ x: safeX, y: safeY });
+      Adventure.snake.pop();
+    } else {
+      damageAdventure(1, '撞墙了！');
+    }
     return;
   }
   if (Adventure.snake.some((s, i) => i > 0 && s.x === newHead.x && s.y === newHead.y)) {
-    damageAdventure(1, '咬到自己了！');
+    if (Adventure.shieldActive) {
+      Adventure.shieldActive = false; Adventure.shieldTimer = 0;
+      addFloatingText((newHead.x+0.5)*GRID_SIZE, (newHead.y+0.5)*GRID_SIZE, '🛡 护盾挡下!', '#a29bfe', 20, true);
+      Adventure.snake.unshift(newHead);
+      Adventure.snake.pop();
+    } else {
+      damageAdventure(1, '咬到自己了！');
+    }
     return;
   }
   const obsIdx = Adventure.obstacles.findIndex(o => o.x === newHead.x && o.y === newHead.y);
   if (obsIdx >= 0) {
-    Adventure.explosions.push(createExplosion(newHead.x, newHead.y, ['#81ecec','#00cec9','#0984e3']));
-    Adventure.obstacles.splice(obsIdx, 1);
-    damageAdventure(1, '撞到晶石路障！');
+    if (Adventure.shieldActive) {
+      Adventure.explosions.push(createExplosion(newHead.x, newHead.y, ['#a29bfe','#ffeaa7']));
+      Adventure.obstacles.splice(obsIdx, 1);
+      Adventure.shieldActive = false; Adventure.shieldTimer = 0;
+      addFloatingText((newHead.x+0.5)*GRID_SIZE, (newHead.y+0.5)*GRID_SIZE, '🛡 击碎路障!', '#a29bfe', 20, true);
+      Adventure.snake.unshift(newHead);
+      Adventure.snake.pop();
+    } else {
+      Adventure.explosions.push(createExplosion(newHead.x, newHead.y, ['#81ecec','#00cec9','#0984e3']));
+      Adventure.obstacles.splice(obsIdx, 1);
+      damageAdventure(1, '撞到晶石路障！');
+    }
     return;
   }
 
@@ -1083,7 +1306,18 @@ function updateAdventureStep() {
 
   const fi = Adventure.foods.findIndex(f => f.x === newHead.x && f.y === newHead.y);
   if (fi >= 0) {
-    Adventure.score += 10;
+    const mult = triggerCombo();
+    const base = 10;
+    const gain = Math.round(base * mult);
+    Adventure.score += gain;
+    // +X 飘字
+    addFloatingText((newHead.x+0.5)*GRID_SIZE, (newHead.y+0.3)*GRID_SIZE, `+${gain}`, '#55efc4', 18);
+    // 临界连击大提示
+    if (Adventure.combo >= 10 && Adventure.combo % 10 === 0) {
+      addFloatingText((newHead.x+0.5)*GRID_SIZE, (newHead.y-0.2)*GRID_SIZE, `🔥 ${Adventure.combo}连击! x3`, '#ff6b6b', 26, true);
+    } else if (Adventure.combo >= 7 && Adventure.combo % 7 === 0) {
+      addFloatingText((newHead.x+0.5)*GRID_SIZE, (newHead.y-0.2)*GRID_SIZE, `⭐ ${Adventure.combo}连击! x2.2`, '#fdcb6e', 23, true);
+    }
     Adventure.foods.splice(fi,1);
     spawnFood('food_normal');
     if (Adventure.score % 100 === 0 && Adventure.score > 0) {
@@ -1095,9 +1329,12 @@ function updateAdventureStep() {
       const pu = Adventure.powerups[pi];
       handlePowerup(pu.type, newHead);
       Adventure.powerups.splice(pi,1);
-      if (Math.random() < 0.7) {
-        const types = ['food_grow','food_shrink','health','weapon','shield'];
-        spawnPowerup(types[Math.floor(Math.random()*types.length)]);
+      const rand = Math.random();
+      if (rand < 0.78) {
+        const types = ['food_grow','food_shrink','health','weapon','shield','treasure'];
+        // 增加宝箱权重：1/6 ≈ 16%
+        const weightedTypes = ['food_grow','food_shrink','health','weapon','shield','treasure','treasure'];
+        spawnPowerup(weightedTypes[Math.floor(Math.random()*weightedTypes.length)]);
       }
     } else {
       Adventure.snake.pop();
@@ -1109,41 +1346,92 @@ function updateAdventureStep() {
 
 function handlePowerup(type, head) {
   switch (type) {
-    case 'food_grow':
+    case 'food_grow': {
       Adventure.snake.push({...Adventure.snake[Adventure.snake.length-1]});
       Adventure.snake.push({...Adventure.snake[Adventure.snake.length-1]});
       Adventure.score += 5;
       Adventure.explosions.push(createExplosion(head.x, head.y, ['#a29bfe','#6c5ce7']));
+      addFloatingText((head.x+0.5)*GRID_SIZE, (head.y+0.3)*GRID_SIZE, '+2节!', '#a29bfe', 20);
       break;
-    case 'food_shrink':
+    }
+    case 'food_shrink': {
       if (Adventure.snake.length > 3) Adventure.snake.pop();
       Adventure.score += 3;
       Adventure.explosions.push(createExplosion(head.x, head.y, ['#ff6b9d','#c44569']));
+      addFloatingText((head.x+0.5)*GRID_SIZE, (head.y+0.3)*GRID_SIZE, '-1节 轻便!', '#ff6b9d', 20);
       break;
-    case 'health':
+    }
+    case 'health': {
       Adventure.lives = Math.min(Adventure.maxLives, Adventure.lives + 1);
       Adventure.explosions.push(createExplosion(head.x, head.y, ['#fd79a8','#ffeaa7']));
+      addFloatingText((head.x+0.5)*GRID_SIZE, (head.y+0.3)*GRID_SIZE, '+1❤ 生命!', '#ff6b9d', 20, true);
       break;
-    case 'weapon':
+    }
+    case 'weapon': {
       Adventure.ammo += 5;
       Adventure.explosions.push(createExplosion(head.x, head.y, ['#74b9ff','#fdcb6e']));
+      addFloatingText((head.x+0.5)*GRID_SIZE, (head.y+0.3)*GRID_SIZE, '+5🔫 弹药!', '#74b9ff', 20);
       break;
-    case 'shield':
-      Adventure.lives = Math.min(Adventure.maxLives, Adventure.lives + 1);
+    }
+    case 'shield': {
+      Adventure.shieldActive = true;
+      Adventure.shieldTimer = 10000; // 10秒
       Adventure.explosions.push(createExplosion(head.x, head.y, ['#a29bfe','#ffeaa7']));
+      addFloatingText((head.x+0.5)*GRID_SIZE, (head.y+0.3)*GRID_SIZE, '🛡 护盾 10秒!', '#a29bfe', 22, true);
       break;
+    }
+    case 'treasure': {
+      // 宝箱：随机大奖（5~10倍超级奖励）
+      const roll = Math.random();
+      let reward = '';
+      const color = '#f9ca24';
+      Adventure.explosions.push(createExplosion(head.x, head.y, ['#f9ca24','#f0932b','#fd79a8','#ffeaa7','#fff']));
+      if (roll < 0.3) {
+        // 5颗心
+        const heal = Math.min(Adventure.maxLives - Adventure.lives, 5);
+        Adventure.lives += heal;
+        Adventure.score += 50;
+        reward = `💎 宝箱 +50分 +${heal}❤`;
+      } else if (roll < 0.55) {
+        // 10发弹药
+        Adventure.ammo += 10;
+        Adventure.score += 60;
+        reward = '💎 宝箱 +60分 +10🔫';
+      } else if (roll < 0.8) {
+        // 长身体+护盾
+        for (let i = 0; i < 5; i++) Adventure.snake.push({...Adventure.snake[Adventure.snake.length-1]});
+        Adventure.shieldActive = true;
+        Adventure.shieldTimer = 12000;
+        Adventure.score += 80;
+        reward = '💎 宝箱 +80分 +5节 +🛡';
+      } else {
+        // 超级大奖
+        Adventure.score += 200;
+        Adventure.lives = Adventure.maxLives;
+        Adventure.ammo += 20;
+        reward = '🎉 超级大奖 +200 满血满弹!';
+      }
+      addFloatingText((head.x+0.5)*GRID_SIZE, (head.y+0.1)*GRID_SIZE, reward, color, 26, true);
+      break;
+    }
   }
 }
 
 function damageAdventure(dmg, reason) {
   Adventure.lives -= dmg;
   Adventure.explosions.push(createExplosion(Adventure.snake[0].x, Adventure.snake[0].y, ['#ff6b6b','#ee5253','#ff9ff3']));
+  addFloatingText((Adventure.snake[0].x+0.5)*GRID_SIZE, (Adventure.snake[0].y-0.2)*GRID_SIZE, `-${dmg}❤ ${reason||''}`, '#ff6b6b', 20, true);
+  // 被打中断连击
+  Adventure.combo = 0; Adventure.comboTimer = 0;
   if (Adventure.lives <= 0) {
     endAdventureGame();
   } else {
     Adventure.snake = [{x:12,y:12},{x:11,y:12},{x:10,y:12}];
     Adventure.direction = {x:1,y:0};
     Adventure.nextDirection = {x:1,y:0};
+    // 死后给3秒护盾保护
+    Adventure.shieldActive = true;
+    Adventure.shieldTimer = 3000;
   }
   updateAdventureHUD();
 }
@@ -1204,33 +1492,219 @@ function updateAdventureHUD() {
   if ($('highScore')) $('highScore').textContent = Math.max(Adventure.totalScore, Adventure.score);
 }
 
-function renderAdventureFrame() {
-  if (!Adventure.ctx) return;
-  const ctx = Adventure.ctx;
-  const W = Adventure.canvas.width, H = Adventure.canvas.height;
-  ctx.fillStyle = '#1a1535';
+// ===== 初始化动态星空背景 =====
+function initStars(W, H) {
+  if (Adventure.stars.length > 0) return;
+  for (let i = 0; i < 80; i++) {
+    Adventure.stars.push({
+      x: Math.random() * W,
+      y: Math.random() * H,
+      r: Math.random() * 1.4 + 0.3,
+      s: Math.random() * 0.4 + 0.1, // 漂移速度
+      tw: Math.random() * Math.PI * 2 // 闪烁相位
+    });
+  }
+}
+
+// ===== 绘制动态星空背景 =====
+function drawGameBackground(ctx, W, H) {
+  // 1. 深邃紫色渐变天空
+  const sky = ctx.createLinearGradient(0, 0, W, H);
+  sky.addColorStop(0,    '#0f0a2e');  // 深蓝紫
+  sky.addColorStop(0.45, '#1a1145');  // 神秘紫
+  sky.addColorStop(0.85, '#2a1a5e');  // 罗兰紫
+  sky.addColorStop(1,    '#0a0820');  // 接近黑
+  ctx.fillStyle = sky;
   ctx.fillRect(0,0,W,H);
-  ctx.strokeStyle = 'rgba(102,126,234,0.08)';
+
+  // 2. 星云光斑（柔和光晕）
+  const nebula1 = ctx.createRadialGradient(W*0.18, H*0.25, 10, W*0.18, H*0.25, W*0.35);
+  nebula1.addColorStop(0, 'rgba(240,147,251,0.18)');
+  nebula1.addColorStop(0.5, 'rgba(240,147,251,0.06)');
+  nebula1.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = nebula1; ctx.fillRect(0,0,W,H);
+
+  const nebula2 = ctx.createRadialGradient(W*0.82, H*0.72, 10, W*0.82, H*0.72, W*0.4);
+  nebula2.addColorStop(0, 'rgba(102,126,234,0.22)');
+  nebula2.addColorStop(0.5, 'rgba(102,126,234,0.08)');
+  nebula2.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = nebula2; ctx.fillRect(0,0,W,H);
+
+  // 3. 动态星星（闪烁+漂移）
+  const nowT = Date.now()/600;
+  for (let i = 0; i < Adventure.stars.length; i++) {
+    const s = Adventure.stars[i];
+    s.x += s.s; s.y += s.s*0.6;
+    if (s.x > W) s.x = 0; if (s.y > H) s.y = 0;
+    if (s.x < 0) s.x = W; if (s.y < 0) s.y = H;
+    const alpha = 0.45 + Math.sin(nowT + s.tw) * 0.55;
+    ctx.fillStyle = `rgba(255,255,255,${Math.max(0.15,alpha)})`;
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, s.r, 0, Math.PI*2);
+    ctx.fill();
+    // 大星星加十字光芒
+    if (s.r > 1.2 && alpha > 0.6) {
+      ctx.strokeStyle = `rgba(255,255,255,${alpha*0.5})`;
+      ctx.lineWidth = 0.6;
+      ctx.beginPath();
+      ctx.moveTo(s.x - s.r*2.5, s.y); ctx.lineTo(s.x + s.r*2.5, s.y);
+      ctx.moveTo(s.x, s.y - s.r*2.5); ctx.lineTo(s.x, s.y + s.r*2.5);
+      ctx.stroke();
+    }
+  }
+
+  // 4. 网格线（极细，仅作参考）
+  ctx.strokeStyle = 'rgba(162,155,254,0.07)';
   ctx.lineWidth = 1;
   for (let i = 0; i <= TILE_COUNT; i++) {
     ctx.beginPath(); ctx.moveTo(i*GRID_SIZE, 0); ctx.lineTo(i*GRID_SIZE, H); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(0, i*GRID_SIZE); ctx.lineTo(W, i*GRID_SIZE); ctx.stroke();
   }
+  // 5. 边界发光边框
+  ctx.strokeStyle = 'rgba(162,155,254,0.4)';
+  ctx.lineWidth = 2;
+  ctx.shadowColor = '#a29bfe'; ctx.shadowBlur = 10;
+  ctx.strokeRect(1,1,W-2,H-2);
+  ctx.shadowBlur = 0;
+}
+
+// ===== 飘字数字（+100 / COMBO / CRITICAL）=====
+function addFloatingText(x, y, text, color='#ffeaa7', size=22, isBig=false) {
+  Adventure.floatingTexts.push({
+    x, y, text, color,
+    size: isBig ? size+4 : size,
+    life: 1.0,
+    vy: isBig ? -1.6 : -1.1,
+    vx: (Math.random()-0.5)*0.6
+  });
+}
+function drawFloatingTexts(ctx) {
+  for (let i = Adventure.floatingTexts.length-1; i >= 0; i--) {
+    const ft = Adventure.floatingTexts[i];
+    ft.life -= 0.022;
+    ft.y += ft.vy;
+    ft.x += ft.vx;
+    if (ft.life <= 0) { Adventure.floatingTexts.splice(i,1); continue; }
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, ft.life);
+    ctx.fillStyle = ft.color;
+    ctx.strokeStyle = 'rgba(0,0,0,0.55)';
+    ctx.lineWidth = 3;
+    ctx.font = `bold ${ft.size}px "Microsoft YaHei", "PingFang SC", sans-serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.shadowColor = ft.color; ctx.shadowBlur = 12;
+    ctx.strokeText(ft.text, ft.x, ft.y);
+    ctx.fillText(ft.text, ft.x, ft.y);
+    ctx.restore();
+  }
+}
+
+// ===== 绘制粒子（拖尾光点）=====
+function drawParticles(ctx) {
+  for (let i = Adventure.particles.length-1; i >= 0; i--) {
+    const p = Adventure.particles[i];
+    p.life -= 0.035;
+    if (p.life <= 0) { Adventure.particles.splice(i,1); continue; }
+    p.x += p.vx; p.y += p.vy;
+    p.vx *= 0.94; p.vy *= 0.94;
+    p.size *= 0.96;
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, p.life);
+    ctx.fillStyle = p.color;
+    ctx.shadowColor = p.color; ctx.shadowBlur = 8;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, Math.max(0.5, p.size), 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
+function renderAdventureFrame() {
+  if (!Adventure.ctx) return;
+  const ctx = Adventure.ctx;
+  const W = Adventure.canvas.width, H = Adventure.canvas.height;
+  initStars(W, H);
+
+  // 1. 动态星空+星云背景
+  drawGameBackground(ctx, W, H);
+
+  // 2. 绘制游戏物体
   Adventure.obstacles.forEach(o => drawItem(ctx, o.x*GRID_SIZE, o.y*GRID_SIZE, 'obstacle'));
   Adventure.foods.forEach(f => drawItem(ctx, f.x*GRID_SIZE, f.y*GRID_SIZE, f.type));
   Adventure.powerups.forEach(p => drawItem(ctx, p.x*GRID_SIZE, p.y*GRID_SIZE, p.type));
+
+  // 3. 蛇身（倒序）
   for (let i = Adventure.snake.length-1; i >= 0; i--) {
     const s = Adventure.snake[i];
     if (i === 0) drawSnakeHead(ctx, s.x*GRID_SIZE, s.y*GRID_SIZE, CurrentSkin, Adventure.direction);
     else drawSnakeBody(ctx, s.x*GRID_SIZE, s.y*GRID_SIZE, s.x, s.y, i, Adventure.snake.length, CurrentSkin);
   }
+
+  // 4. 激光
   Adventure.lasers.forEach(l => drawLaser(ctx, l));
   Adventure.lasers = Adventure.lasers.filter(l => {
     l.life -= 1; return l.life > 0;
   });
+
+  // 5. 爆炸特效
   Adventure.explosions.forEach(e => drawExplosion(ctx, e));
   Adventure.explosions.forEach(e => updateExplosion(e));
   Adventure.explosions = Adventure.explosions.filter(e => e.life > 0);
+
+  // 6. 蛇身拖尾粒子
+  drawParticles(ctx);
+
+  // 7. 飘字数字（+100 / COMBO x5 等）
+  drawFloatingTexts(ctx);
+
+  // 8. 连击倒计时条 & 护盾倒计时条（左上叠加，紧贴画布）
+  drawStatusBars(ctx, W);
+}
+
+// ===== 连击条 & 护盾条 HUD =====
+function drawStatusBars(ctx, W) {
+  let barY = 10;
+  // 连击条
+  if (Adventure.comboTimer > 0 && Adventure.combo >= 2) {
+    const pct = Math.max(0, Adventure.comboTimer / 2500); // 2.5秒窗口
+    const comboW = 130;
+    const x = 10, y = barY, h = 14;
+    // 背景
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    roundedRect(ctx, x, y, comboW, h, 7); ctx.fill();
+    // 进度
+    const comboColor = Adventure.combo >= 8 ? '#ff6b6b' : Adventure.combo >= 5 ? '#fdcb6e' : '#ffeaa7';
+    const g = ctx.createLinearGradient(x, 0, x+comboW, 0);
+    g.addColorStop(0, comboColor); g.addColorStop(1, lightenColor(comboColor,10));
+    ctx.fillStyle = g;
+    roundedRect(ctx, x+2, y+2, (comboW-4)*pct, h-4, 5); ctx.fill();
+    // 文字
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 11px "Microsoft YaHei", sans-serif';
+    ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    ctx.shadowColor = comboColor; ctx.shadowBlur = 6;
+    ctx.fillText(`🔥 连击 x${Adventure.combo}`, x+8, y+h/2+1);
+    ctx.shadowBlur = 0;
+    barY += 22;
+  }
+  // 护盾条
+  if (Adventure.shieldActive && Adventure.shieldTimer > 0) {
+    const pct = Math.max(0, Adventure.shieldTimer / 10000); // 10秒持续
+    const sw = 130;
+    const x = 10, y = barY, h = 14;
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    roundedRect(ctx, x, y, sw, h, 7); ctx.fill();
+    const g = ctx.createLinearGradient(x,0,x+sw,0);
+    g.addColorStop(0,'#a29bfe'); g.addColorStop(1,'#6c5ce7');
+    ctx.fillStyle = g;
+    roundedRect(ctx, x+2, y+2, (sw-4)*pct, h-4, 5); ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 11px "Microsoft YaHei", sans-serif';
+    ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    ctx.shadowColor = '#a29bfe'; ctx.shadowBlur = 6;
+    ctx.fillText(`🛡 护盾 ${Math.ceil(Adventure.shieldTimer/1000)}s`, x+8, y+h/2+1);
+    ctx.shadowBlur = 0;
+  }
 }
 
 function startAdventureLoop() {
