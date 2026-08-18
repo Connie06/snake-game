@@ -3225,52 +3225,71 @@ window.__runPartB = function () {
     const ctx = Diy.previewCtx;
     const cv = Diy.previewCanvas;
     ctx.clearRect(0, 0, cv.width, cv.height);
+    // 圆形裁剪 - 让预览成为画布的圆形头像
     ctx.save();
-    ctx.translate(cv.width / 2, cv.height / 2);
-    const scale = cv.width / GRID_SIZE;
+    ctx.beginPath();
+    ctx.arc(cv.width / 2, cv.height / 2, cv.width / 2, 0, Math.PI * 2);
+    ctx.clip();
+    // 等比缩放：把 600x600 画布完整映射到预览圆中
+    const scale = cv.width / Diy.canvas.width;
     ctx.scale(scale, scale);
-    const r = GRID_SIZE / 2 - 2;
-    const g = ctx.createRadialGradient(-r*0.3, -r*0.3, 2, 0, 0, r);
-    g.addColorStop(0, CurrentSkin.bodyColor3 || '#ffffff');
-    g.addColorStop(0.6, lightenColor(CurrentSkin.bodyColor1 || '#667eea', 15));
-    g.addColorStop(1, CurrentSkin.bodyColor1 || '#667eea');
-    ctx.fillStyle = g;
-    ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI*2); ctx.fill();
-    const factor = GRID_SIZE / Diy.canvas.width;
+    // 画背景（与 renderDiy 完全一致）
+    const m = Diy.bgColor.match(/#[0-9a-fA-F]{6}/g) || ['#f5f7fa', '#c3cfe2'];
+    if (Diy.bgColor.includes('radial') || Diy.bgColor.includes('conic')) {
+      const rg = ctx.createRadialGradient(Diy.canvas.width / 2, Diy.canvas.height / 2, 0, Diy.canvas.width / 2, Diy.canvas.height / 2, Diy.canvas.width / 2);
+      rg.addColorStop(0, m[0] || '#f5f7fa');
+      rg.addColorStop(1, m[1] || '#c3cfe2');
+      ctx.fillStyle = rg;
+    } else {
+      const lg = ctx.createLinearGradient(0, 0, Diy.canvas.width, Diy.canvas.height);
+      lg.addColorStop(0, m[0] || '#f5f7fa');
+      lg.addColorStop(1, m[1] || '#c3cfe2');
+      ctx.fillStyle = lg;
+    }
+    ctx.fillRect(0, 0, Diy.canvas.width, Diy.canvas.height);
+    // 画所有元素（与 renderDiy 完全一致，坐标不变）
     Diy.items.forEach(item => {
       ctx.save();
       if (item.type === 'sticker') {
-        ctx.translate(item.x * factor - GRID_SIZE/2, item.y * factor - GRID_SIZE/2);
+        ctx.translate(item.x, item.y);
         ctx.rotate(item.rot);
         ctx.globalAlpha = item.alpha || 1;
         if (item.content === 'photo' && item.image) {
-          ctx.drawImage(item.image, -item.w*factor/2, -item.h*factor/2, item.w*factor, item.h*factor);
+          ctx.drawImage(item.image, -item.w / 2, -item.h / 2, item.w, item.h);
         } else {
-          ctx.font = `${item.h * factor * 0.85}px "Segoe UI Emoji", "Apple Color Emoji", sans-serif`;
+          ctx.font = `${item.h * 0.85}px "Segoe UI Emoji", "Apple Color Emoji", sans-serif`;
           ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
           ctx.fillText(item.content, 0, 0);
         }
       } else if (item.type === 'brush') {
         ctx.globalAlpha = item.alpha || 1;
-        if (item.style === 'neon') { ctx.shadowColor = item.color; ctx.shadowBlur = 8; }
+        if (item.style === 'neon') { ctx.shadowColor = item.color; ctx.shadowBlur = 16; }
         ctx.strokeStyle = item.color; ctx.fillStyle = item.color;
-        ctx.lineWidth = item.size * factor;
-        ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+        ctx.lineWidth = item.size; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
         if (item.style === 'spray') {
           for (const p of item.points) {
-            const px = p.x * factor - GRID_SIZE/2, py = p.y * factor - GRID_SIZE/2;
-            ctx.fillRect(px, py, 1, 1);
+            for (let i = 0; i < 6; i++) {
+              const rx = (Math.random() - 0.5) * item.size * 2.5;
+              const ry = (Math.random() - 0.5) * item.size * 2.5;
+              ctx.fillRect(p.x + rx, p.y + ry, 1.5, 1.5);
+            }
           }
         } else {
           ctx.beginPath();
-          if (item.points.length > 0) ctx.moveTo(item.points[0].x * factor - GRID_SIZE/2, item.points[0].y * factor - GRID_SIZE/2);
-          item.points.forEach(p => ctx.lineTo(p.x * factor - GRID_SIZE/2, p.y * factor - GRID_SIZE/2));
+          if (item.points.length > 0) ctx.moveTo(item.points[0].x, item.points[0].y);
+          item.points.forEach(p => ctx.lineTo(p.x, p.y));
           ctx.stroke();
         }
       }
       ctx.restore();
     });
     ctx.restore();
+    // 圆形边框
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.arc(cv.width / 2, cv.height / 2, cv.width / 2 - 2, 0, Math.PI * 2);
+    ctx.stroke();
   }
 
   function updateDiyInfo() {
