@@ -1110,9 +1110,7 @@ function bindCustomizeTabs() {
   });
   const customBtn = $('customBtn');
   if (customBtn) customBtn.addEventListener('click', () => {
-    const cs = $('characterSelect'); if (!cs) return;
-    cs.classList.toggle('visible');
-    cs.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    openDiyWorkshop();
   });
 }
 
@@ -1864,6 +1862,7 @@ document.addEventListener('DOMContentLoaded', function() {
   bindSkinSaveLoad();
   bindCustomizeTabs();
   renderAllPreviews();
+  initDiyWorkshop();
 
   bindKeyboard();
   bindAdventureMobileControls();
@@ -2831,6 +2830,592 @@ window.__runPartB = function () {
   }
 
   // ===== 覆盖全局占位 =====
-  window.backToMenu = function () { stopAll(); showScreen('startScreen'); };
+  window.backToMenu = function () { stopAll(); showScreen('startScreen'); };    
   window.shootBattle = shootBattle;
+
+  // ============================================================
+  // ============ 🎨 DIY 创作工坊（全屏独立页） ================
+  // ============================================================
+  // 贴纸库（参考王者荣耀/蛋仔派对角色装扮、第五人格道具、原神命座）
+  const STICKER_LIB = {
+    royal: ['👑','💎','🎖️','🥇','🏆','⚡','🔥','💫','⭐','🌟','✨','🗡️','🛡️','🏰','🔱'],
+    nature: ['🌸','🌺','🌻','🌼','🌷','🌹','🍀','🌿','🍃','🌱','🌳','🌴','🌵','🌊','🌈'],
+    effect: ['💥','💦','🌪️','🌩️','❄️','☁️','☀️','🌙','🌋','🎈','🎁','🎀','💘','💝','🎉'],
+    deco: ['🎩','👑','👓','🕶️','🧣','🧢','🎒','👜','💄','💍','🎵','🎶','🎲','🃏','♠️']
+  };
+  const EMOJI_LIB = ['😀','😁','😂','🤣','😎','😍','🥰','😘','😋','🤩','🥳','😏','😶','😐','🤔','😴','🥱','😷','🤒','🤕','🤧','🥵','🥶','😱','😭','😡','🤬','😈','👿','👻','💀','👽','🤖','😺','😻','🙈','🙉','🙊'];
+  const BG_PRESETS = [
+    'linear-gradient(135deg, #f5f7fa, #c3cfe2)',
+    'linear-gradient(135deg, #ffecd2, #fcb69f)',
+    'linear-gradient(135deg, #a1c4fd, #c2e9fb)',
+    'linear-gradient(135deg, #fbc2eb, #a18cd1)',
+    'linear-gradient(135deg, #84fab0, #8fd3f4)',
+    'linear-gradient(135deg, #ff9a9e, #fecfef)',
+    'radial-gradient(circle, #2a529a, #1e3c72)',
+    'radial-gradient(circle, #ff6e7f, #bfe9ff)',
+    'conic-gradient(from 0deg, #ff6b6b, #feca57, #48dbfb, #ff6b6b)'
+  ];
+
+  // DIY 状态
+  const Diy = {
+    canvas: null, ctx: null,
+    previewCanvas: null, previewCtx: null,
+    items: [], // {id, type:'sticker'|'brush', content, x, y, w, h, rot, alpha, image?, color?, size?, style?, points?}
+    selectedId: null,
+    mode: 'select', // select | brush | eraser
+    brushColor: '#ff6b9d', brushSize: 6, brushAlpha: 100, brushStyle: 'solid',
+    bgColor: BG_PRESETS[0],
+    nextId: 1,
+    history: [], historyIdx: -1,
+    isDrawing: false,
+    dragging: null, resizing: null, rotating: null
+  };
+
+  function openDiyWorkshop() {
+    showScreen('diyWorkshopScreen');
+    if (!Diy.canvas) initDiyWorkshop();
+    setTimeout(() => { renderDiy(); updateDiyPreview(); }, 50);
+  }
+  window.openDiyWorkshop = openDiyWorkshop;
+
+  function initDiyWorkshop() {
+    Diy.canvas = $('diyCanvas');
+    Diy.previewCanvas = $('diyPreviewCanvas');
+    if (!Diy.canvas) return;
+    Diy.ctx = Diy.canvas.getContext('2d');
+    Diy.previewCtx = Diy.previewCanvas.getContext('2d');
+    Diy.canvas.width = 600; Diy.canvas.height = 600;
+
+    function fillStickerGrid(id, arr) {
+      const el = $(id); if (!el) return;
+      el.innerHTML = '';
+      arr.forEach(s => {
+        const d = document.createElement('div');
+        d.className = 'sticker-item';
+        d.textContent = s;
+        d.addEventListener('click', () => addSticker(s));
+        el.appendChild(d);
+      });
+    }
+    fillStickerGrid('stickerRoyal', STICKER_LIB.royal);
+    fillStickerGrid('stickerNature', STICKER_LIB.nature);
+    fillStickerGrid('stickerEffect', STICKER_LIB.effect);
+    fillStickerGrid('stickerDeco', STICKER_LIB.deco);
+
+    const em = $('emojiStickerGrid');
+    if (em) {
+      em.innerHTML = '';
+      EMOJI_LIB.forEach(e => {
+        const d = document.createElement('div');
+        d.className = 'emoji-sticker-item';
+        d.textContent = e;
+        d.addEventListener('click', () => addSticker(e));
+        em.appendChild(d);
+      });
+    }
+
+    const bgEl = $('bgPresets');
+    if (bgEl) {
+      bgEl.innerHTML = '';
+      BG_PRESETS.forEach((bg, i) => {
+        const d = document.createElement('div');
+        d.className = 'bg-preset-item' + (i === 0 ? ' active' : '');
+        d.style.background = bg;
+        d.addEventListener('click', () => {
+          document.querySelectorAll('.bg-preset-item').forEach(x => x.classList.remove('active'));
+          d.classList.add('active');
+          Diy.bgColor = bg;
+          renderDiy();
+        });
+        bgEl.appendChild(d);
+      });
+    }
+
+    document.querySelectorAll('.diy-tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const tab = btn.dataset.diytab;
+        document.querySelectorAll('.diy-tab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        document.querySelectorAll('.diy-tab-panel').forEach(p => {
+          if (p.dataset.diytab === tab) p.classList.remove('hidden');
+          else p.classList.add('hidden');
+        });
+        Diy.mode = (tab === 'brush') ? 'brush' : 'select';
+      });
+    });
+
+    const bc = $('brushColor'); if (bc) bc.addEventListener('input', e => Diy.brushColor = e.target.value);
+    const bs = $('brushSize'); if (bs) bs.addEventListener('input', e => Diy.brushSize = +e.target.value);
+    const ba = $('brushAlpha'); if (ba) ba.addEventListener('input', e => Diy.brushAlpha = +e.target.value);
+    document.querySelectorAll('.brush-style-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.brush-style-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        Diy.brushStyle = btn.dataset.brush;
+      });
+    });
+    const be = $('brushEraserBtn'); if (be) be.addEventListener('click', () => {
+      Diy.mode = (Diy.mode === 'eraser') ? 'select' : 'eraser';
+      be.style.background = Diy.mode === 'eraser' ? 'rgba(231,76,60,0.6)' : '';
+    });
+
+    const b1 = $('diyBodyColor1'), b2 = $('diyBodyColor2'), b3 = $('diyBodyColor3');
+    if (b1) b1.addEventListener('input', e => { CurrentSkin.bodyColor1 = e.target.value; updateDiyPreview(); });
+    if (b2) b2.addEventListener('input', e => { CurrentSkin.bodyColor2 = e.target.value; updateDiyPreview(); });
+    if (b3) b3.addEventListener('input', e => { CurrentSkin.bodyColor3 = e.target.value; updateDiyPreview(); });
+    document.querySelectorAll('.diy-shape-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.diy-shape-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        CurrentSkin.bodyShape = btn.dataset.shape;
+        updateDiyPreview();
+      });
+    });
+    const ab = $('diyApplyBaseBtn'); if (ab) ab.addEventListener('click', () => {
+      renderAllPreviews();
+      showToast('蛇身已应用！');
+    });
+
+    const back = $('diyBackBtn'); if (back) back.addEventListener('click', () => showScreen('startScreen'));
+    const undo = $('diyUndoBtn'); if (undo) undo.addEventListener('click', undoDiy);
+    const redo = $('diyRedoBtn'); if (redo) redo.addEventListener('click', redoDiy);
+    const clr = $('diyClearBtn'); if (clr) clr.addEventListener('click', () => {
+      if (Diy.items.length === 0) return;
+      pushDiyHistory();
+      Diy.items = []; Diy.selectedId = null;
+      renderDiy(); updateDiyPreview();
+      showToast('已清空画布');
+    });
+    const sv = $('diySaveBtn'); if (sv) sv.addEventListener('click', saveDiySkin);
+    const sv2 = $('diySaveSkinBtn'); if (sv2) sv2.addEventListener('click', saveDiySkin);
+
+    const ldown = $('diyLayerDownBtn'); if (ldown) ldown.addEventListener('click', () => moveLayer(-1));
+    const lup = $('diyLayerUpBtn'); if (lup) lup.addEventListener('click', () => moveLayer(1));
+    const del = $('diyDeleteSelBtn'); if (del) del.addEventListener('click', deleteSelected);
+    const up = $('diyUsePhotoBtn'); if (up) up.addEventListener('click', usePhotoAsHead);
+    const rnd = $('diyRandomBtn'); if (rnd) rnd.addEventListener('click', randomDiy);
+
+    Diy.canvas.addEventListener('mousedown', onDiyDown);
+    Diy.canvas.addEventListener('mousemove', onDiyMove);
+    window.addEventListener('mouseup', onDiyUp);
+    Diy.canvas.addEventListener('touchstart', onDiyDown, { passive: false });
+    Diy.canvas.addEventListener('touchmove', onDiyMove, { passive: false });
+    window.addEventListener('touchend', onDiyUp);
+  }
+
+  function getDiyPos(e) {
+    const r = Diy.canvas.getBoundingClientRect();
+    const cx = (e.touches ? e.touches[0].clientX : e.clientX) - r.left;
+    const cy = (e.touches ? e.touches[0].clientY : e.clientY) - r.top;
+    return { x: cx * (Diy.canvas.width / r.width), y: cy * (Diy.canvas.height / r.height) };
+  }
+
+  function addSticker(content) {
+    pushDiyHistory();
+    const item = {
+      id: Diy.nextId++, type: 'sticker', content,
+      x: Diy.canvas.width / 2 + (Math.random() - 0.5) * 100,
+      y: Diy.canvas.height / 2 + (Math.random() - 0.5) * 100,
+      w: 60, h: 60, rot: 0, alpha: 1
+    };
+    Diy.items.push(item);
+    Diy.selectedId = item.id;
+    renderDiy(); updateDiyPreview();
+    updateDiyInfo();
+  }
+
+  function hitTestItem(item, x, y) {
+    const dx = x - item.x, dy = y - item.y;
+    const cos = Math.cos(-item.rot), sin = Math.sin(-item.rot);
+    const lx = dx * cos - dy * sin;
+    const ly = dx * sin + dy * cos;
+    if (item.type === 'sticker') {
+      return Math.abs(lx) <= item.w / 2 && Math.abs(ly) <= item.h / 2;
+    } else if (item.type === 'brush') {
+      for (const p of item.points) {
+        if (Math.hypot(p.x - x, p.y - y) < (item.size || 6) + 4) return true;
+      }
+      return false;
+    }
+    return false;
+  }
+
+  function getHandleAt(x, y, item) {
+    if (item.type !== 'sticker') return null;
+    const cos = Math.cos(item.rot), sin = Math.sin(item.rot);
+    const hw = item.w / 2, hh = item.h / 2;
+    const corners = [
+      { name: 'tl', lx: -hw, ly: -hh },
+      { name: 'tr', lx: hw, ly: -hh },
+      { name: 'bl', lx: -hw, ly: hh },
+      { name: 'br', lx: hw, ly: hh },
+      { name: 'rot', lx: 0, ly: -hh - 28 }
+    ];
+    for (const c of corners) {
+      const wx = item.x + c.lx * cos - c.ly * sin;
+      const wy = item.y + c.lx * sin + c.ly * cos;
+      if (Math.hypot(wx - x, wy - y) < 14) return c.name;
+    }
+    return null;
+  }
+
+  function onDiyDown(e) {
+    e.preventDefault();
+    const pos = getDiyPos(e);
+    const sel = Diy.items.find(it => it.id === Diy.selectedId);
+    if (sel) {
+      const h = getHandleAt(pos.x, pos.y, sel);
+      if (h === 'rot') { Diy.rotating = { id: sel.id, cx: sel.x, cy: sel.y, startAng: Math.atan2(pos.y - sel.y, pos.x - sel.x), origRot: sel.rot }; return; }
+      if (h && h !== 'rot') { Diy.resizing = { id: sel.id, handle: h, startX: pos.x, startY: pos.y, origW: sel.w, origH: sel.h }; return; }
+    }
+    for (let i = Diy.items.length - 1; i >= 0; i--) {
+      const it = Diy.items[i];
+      if (hitTestItem(it, pos.x, pos.y)) {
+        Diy.selectedId = it.id;
+        if (Diy.mode === 'select') {
+          Diy.dragging = { id: it.id, startX: pos.x, startY: pos.y, origX: it.x, origY: it.y };
+        }
+        if (Diy.mode === 'eraser') {
+          pushDiyHistory();
+          Diy.items.splice(i, 1);
+          Diy.selectedId = null;
+        }
+        renderDiy(); updateDiyPreview(); updateDiyInfo();
+        return;
+      }
+    }
+    Diy.selectedId = null;
+    if (Diy.mode === 'brush') {
+      pushDiyHistory();
+      const path = {
+        id: Diy.nextId++, type: 'brush',
+        points: [{ x: pos.x, y: pos.y }],
+        color: Diy.brushColor, size: Diy.brushSize, alpha: Diy.brushAlpha / 100, style: Diy.brushStyle
+      };
+      Diy.items.push(path);
+      Diy.isDrawing = path.id;
+    }
+    renderDiy();
+  }
+
+  function onDiyMove(e) {
+    if (e.touches) e.preventDefault();
+    const pos = getDiyPos(e);
+    if (Diy.dragging) {
+      const it = Diy.items.find(x => x.id === Diy.dragging.id);
+      if (it) {
+        it.x = Diy.dragging.origX + (pos.x - Diy.dragging.startX);
+        it.y = Diy.dragging.origY + (pos.y - Diy.dragging.startY);
+        renderDiy(); updateDiyPreview();
+      }
+    } else if (Diy.resizing) {
+      const it = Diy.items.find(x => x.id === Diy.resizing.id);
+      if (it) {
+        const dx = pos.x - Diy.resizing.startX;
+        const dy = pos.y - Diy.resizing.startY;
+        const cos = Math.cos(it.rot), sin = Math.sin(it.rot);
+        const localDx = dx * cos + dy * sin;
+        const localDy = -dx * sin + dy * cos;
+        const ratio = 1 + (localDx + localDy) / 200;
+        it.w = Math.max(20, Diy.resizing.origW * ratio);
+        it.h = Math.max(20, Diy.resizing.origH * ratio);
+        renderDiy(); updateDiyPreview();
+      }
+    } else if (Diy.rotating) {
+      const it = Diy.items.find(x => x.id === Diy.rotating.id);
+      if (it) {
+        const ang = Math.atan2(pos.y - it.y, pos.x - it.x);
+        it.rot = Diy.rotating.origRot + (ang - Diy.rotating.startAng);
+        renderDiy(); updateDiyPreview();
+      }
+    } else if (Diy.isDrawing) {
+      const path = Diy.items.find(x => x.id === Diy.isDrawing);
+      if (path) {
+        path.points.push({ x: pos.x, y: pos.y });
+        renderDiy();
+      }
+    }
+  }
+
+  function onDiyUp() {
+    if (Diy.dragging || Diy.resizing || Diy.rotating || Diy.isDrawing) {
+      updateDiyPreview();
+    }
+    Diy.dragging = null; Diy.resizing = null; Diy.rotating = null; Diy.isDrawing = false;
+  }
+
+  function renderDiy() {
+    if (!Diy.ctx) return;
+    const ctx = Diy.ctx;
+    ctx.clearRect(0, 0, Diy.canvas.width, Diy.canvas.height);
+    const m = Diy.bgColor.match(/#[0-9a-fA-F]{6}/g) || ['#f5f7fa', '#c3cfe2'];
+    if (Diy.bgColor.includes('radial') || Diy.bgColor.includes('conic')) {
+      const rg = ctx.createRadialGradient(ctx.canvas.width/2, ctx.canvas.height/2, 0, ctx.canvas.width/2, ctx.canvas.height/2, ctx.canvas.width/2);
+      rg.addColorStop(0, m[0] || '#f5f7fa');
+      rg.addColorStop(1, m[1] || '#c3cfe2');
+      ctx.fillStyle = rg;
+    } else {
+      const lg = ctx.createLinearGradient(0, 0, ctx.canvas.width, ctx.canvas.height);
+      lg.addColorStop(0, m[0] || '#f5f7fa');
+      lg.addColorStop(1, m[1] || '#c3cfe2');
+      ctx.fillStyle = lg;
+    }
+    ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+
+    Diy.items.forEach(item => {
+      ctx.save();
+      if (item.type === 'sticker') {
+        ctx.translate(item.x, item.y);
+        ctx.rotate(item.rot);
+        ctx.globalAlpha = item.alpha || 1;
+        if (item.content === 'photo' && item.image) {
+          ctx.drawImage(item.image, -item.w/2, -item.h/2, item.w, item.h);
+        } else {
+          ctx.font = `${item.h * 0.85}px "Segoe UI Emoji", "Apple Color Emoji", sans-serif`;
+          ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          ctx.fillText(item.content, 0, 0);
+        }
+      } else if (item.type === 'brush') {
+        ctx.globalAlpha = item.alpha || 1;
+        if (item.style === 'neon') { ctx.shadowColor = item.color; ctx.shadowBlur = 16; }
+        ctx.strokeStyle = item.color; ctx.fillStyle = item.color;
+        ctx.lineWidth = item.size; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+        if (item.style === 'spray') {
+          for (const p of item.points) {
+            for (let i = 0; i < 6; i++) {
+              const rx = (Math.random() - 0.5) * item.size * 2.5;
+              const ry = (Math.random() - 0.5) * item.size * 2.5;
+              ctx.fillRect(p.x + rx, p.y + ry, 1.5, 1.5);
+            }
+          }
+        } else {
+          ctx.beginPath();
+          if (item.points.length > 0) ctx.moveTo(item.points[0].x, item.points[0].y);
+          item.points.forEach(p => ctx.lineTo(p.x, p.y));
+          ctx.stroke();
+        }
+      }
+      ctx.restore();
+    });
+
+    const sel = Diy.items.find(it => it.id === Diy.selectedId);
+    if (sel && sel.type === 'sticker') {
+      ctx.save();
+      ctx.translate(sel.x, sel.y);
+      ctx.rotate(sel.rot);
+      ctx.strokeStyle = '#ffeaa7'; ctx.setLineDash([6,4]); ctx.lineWidth = 2;
+      ctx.strokeRect(-sel.w/2-4, -sel.h/2-4, sel.w+8, sel.h+8);
+      const drawH = (x,y,c='#ffeaa7') => {
+        ctx.setLineDash([]); ctx.fillStyle=c; ctx.strokeStyle='#000'; ctx.lineWidth=2;
+        ctx.beginPath(); ctx.arc(x,y,7,0,Math.PI*2); ctx.fill(); ctx.stroke();
+      };
+      drawH(-sel.w/2-4, -sel.h/2-4);
+      drawH(sel.w/2+4, -sel.h/2-4);
+      drawH(-sel.w/2-4, sel.h/2+4);
+      drawH(sel.w/2+4, sel.h/2+4);
+      drawH(0, -sel.h/2-32, '#fd79a8');
+      ctx.beginPath(); ctx.moveTo(0,-sel.h/2-4); ctx.lineTo(0,-sel.h/2-24);
+      ctx.strokeStyle='#fd79a8'; ctx.setLineDash([]); ctx.stroke();
+      ctx.restore();
+    }
+    updateDiyInfo();
+  }
+
+  function updateDiyPreview() {
+    if (!Diy.previewCtx) return;
+    const ctx = Diy.previewCtx;
+    const cv = Diy.previewCanvas;
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    ctx.save();
+    ctx.translate(cv.width / 2, cv.height / 2);
+    const scale = cv.width / GRID_SIZE;
+    ctx.scale(scale, scale);
+    const r = GRID_SIZE / 2 - 2;
+    const g = ctx.createRadialGradient(-r*0.3, -r*0.3, 2, 0, 0, r);
+    g.addColorStop(0, CurrentSkin.bodyColor3 || '#ffffff');
+    g.addColorStop(0.6, lightenColor(CurrentSkin.bodyColor1 || '#667eea', 15));
+    g.addColorStop(1, CurrentSkin.bodyColor1 || '#667eea');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI*2); ctx.fill();
+    const factor = GRID_SIZE / Diy.canvas.width;
+    Diy.items.forEach(item => {
+      ctx.save();
+      if (item.type === 'sticker') {
+        ctx.translate(item.x * factor - GRID_SIZE/2, item.y * factor - GRID_SIZE/2);
+        ctx.rotate(item.rot);
+        ctx.globalAlpha = item.alpha || 1;
+        if (item.content === 'photo' && item.image) {
+          ctx.drawImage(item.image, -item.w*factor/2, -item.h*factor/2, item.w*factor, item.h*factor);
+        } else {
+          ctx.font = `${item.h * factor * 0.85}px "Segoe UI Emoji", "Apple Color Emoji", sans-serif`;
+          ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          ctx.fillText(item.content, 0, 0);
+        }
+      } else if (item.type === 'brush') {
+        ctx.globalAlpha = item.alpha || 1;
+        if (item.style === 'neon') { ctx.shadowColor = item.color; ctx.shadowBlur = 8; }
+        ctx.strokeStyle = item.color; ctx.fillStyle = item.color;
+        ctx.lineWidth = item.size * factor;
+        ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+        if (item.style === 'spray') {
+          for (const p of item.points) {
+            const px = p.x * factor - GRID_SIZE/2, py = p.y * factor - GRID_SIZE/2;
+            ctx.fillRect(px, py, 1, 1);
+          }
+        } else {
+          ctx.beginPath();
+          if (item.points.length > 0) ctx.moveTo(item.points[0].x * factor - GRID_SIZE/2, item.points[0].y * factor - GRID_SIZE/2);
+          item.points.forEach(p => ctx.lineTo(p.x * factor - GRID_SIZE/2, p.y * factor - GRID_SIZE/2));
+          ctx.stroke();
+        }
+      }
+      ctx.restore();
+    });
+    ctx.restore();
+  }
+
+  function updateDiyInfo() {
+    const el = $('diyCanvasInfo');
+    if (el) el.textContent = `${Diy.items.length} 个元素`;
+  }
+
+  function pushDiyHistory() {
+    Diy.history = Diy.history.slice(0, Diy.historyIdx + 1);
+    Diy.history.push(JSON.stringify(Diy.items));
+    if (Diy.history.length > 50) Diy.history.shift();
+    Diy.historyIdx = Diy.history.length - 1;
+  }
+  function undoDiy() {
+    if (Diy.historyIdx < 0) { showToast('无可撤销'); return; }
+    if (Diy.historyIdx === Diy.history.length - 1) {
+      Diy.history.push(JSON.stringify(Diy.items));
+    }
+    Diy.historyIdx--;
+    if (Diy.historyIdx >= 0) {
+      Diy.items = JSON.parse(Diy.history[Diy.historyIdx]);
+      Diy.selectedId = null;
+      renderDiy(); updateDiyPreview();
+    }
+  }
+  function redoDiy() {
+    if (Diy.historyIdx >= Diy.history.length - 2) { showToast('无可重做'); return; }
+    Diy.historyIdx++;
+    Diy.items = JSON.parse(Diy.history[Diy.historyIdx + 1] || Diy.history[Diy.historyIdx]);
+    Diy.selectedId = null;
+    renderDiy(); updateDiyPreview();
+  }
+  function moveLayer(dir) {
+    if (!Diy.selectedId) return;
+    const i = Diy.items.findIndex(it => it.id === Diy.selectedId);
+    if (i < 0) return;
+    const j = i + dir;
+    if (j < 0 || j >= Diy.items.length) return;
+    pushDiyHistory();
+    [Diy.items[i], Diy.items[j]] = [Diy.items[j], Diy.items[i]];
+    renderDiy(); updateDiyPreview();
+  }
+  function deleteSelected() {
+    if (!Diy.selectedId) return;
+    pushDiyHistory();
+    Diy.items = Diy.items.filter(it => it.id !== Diy.selectedId);
+    Diy.selectedId = null;
+    renderDiy(); updateDiyPreview();
+  }
+  function usePhotoAsHead() {
+    const inp = document.createElement('input');
+    inp.type = 'file'; inp.accept = 'image/*';
+    inp.onchange = () => {
+      const f = inp.files[0]; if (!f) return;
+      const r = new FileReader();
+      r.onload = () => {
+        pushDiyHistory();
+        const img = new Image();
+        img.onload = () => {
+          const item = {
+            id: Diy.nextId++, type: 'sticker', content: 'photo',
+            image: img, x: Diy.canvas.width/2, y: Diy.canvas.height/2,
+            w: 200, h: 200 * img.height / img.width, rot: 0, alpha: 1
+          };
+          Diy.items.push(item);
+          Diy.selectedId = item.id;
+          renderDiy(); updateDiyPreview();
+        };
+        img.src = r.result;
+      };
+      r.readAsDataURL(f);
+    };
+    inp.click();
+  }
+  function randomDiy() {
+    pushDiyHistory();
+    Diy.items = [];
+    const all = [].concat(...Object.values(STICKER_LIB), EMOJI_LIB);
+    const count = 3 + Math.floor(Math.random() * 4);
+    for (let i = 0; i < count; i++) {
+      const s = all[Math.floor(Math.random() * all.length)];
+      Diy.items.push({
+        id: Diy.nextId++, type: 'sticker', content: s,
+        x: 100 + Math.random() * 400, y: 100 + Math.random() * 400,
+        w: 40 + Math.random() * 60, h: 40 + Math.random() * 60,
+        rot: (Math.random() - 0.5) * Math.PI, alpha: 0.7 + Math.random() * 0.3
+      });
+    }
+    Diy.bgColor = BG_PRESETS[Math.floor(Math.random() * BG_PRESETS.length)];
+    document.querySelectorAll('.bg-preset-item').forEach((el, i) => {
+      el.classList.toggle('active', BG_PRESETS[i] === Diy.bgColor);
+    });
+    const colors = ['#667eea','#764ba2','#f093fb','#4facfe','#00f2fe','#43e97b','#fa709a','#fee140'];
+    CurrentSkin.bodyColor1 = colors[Math.floor(Math.random()*colors.length)];
+    CurrentSkin.bodyColor2 = colors[Math.floor(Math.random()*colors.length)];
+    const b1 = $('diyBodyColor1'); if (b1) b1.value = CurrentSkin.bodyColor1;
+    const b2 = $('diyBodyColor2'); if (b2) b2.value = CurrentSkin.bodyColor2;
+    renderDiy(); updateDiyPreview();
+    showToast('已随机生成新形象！');
+  }
+  async function saveDiySkin() {
+    const name = $('diySkinName')?.value.trim();
+    if (!name) { showToast('请输入皮肤名称'); return; }
+    if (!AuthState.user) { showToast('请先登录账号'); return; }
+    const dataUrl = Diy.previewCanvas.toDataURL('image/png');
+    const skinData = {
+      bodyColor1: CurrentSkin.bodyColor1, bodyColor2: CurrentSkin.bodyColor2,
+      bodyColor3: CurrentSkin.bodyColor3, bodyShape: CurrentSkin.bodyShape,
+      headType: 'diy',
+      headDiy: {
+        size: 100, eyeSize: 0, eyeSpacing: 30, mouth: 0, mouthSize: 30,
+        headColor1: CurrentSkin.bodyColor1, headColor2: CurrentSkin.bodyColor2,
+        extraEmojis: [], emojiPositions: [],
+        customItems: Diy.items.map(it => ({
+          type: it.type, content: it.content,
+          x: it.x, y: it.y, w: it.w, h: it.h, rot: it.rot, alpha: it.alpha,
+          color: it.color, size: it.size, style: it.style,
+          points: it.points
+        })),
+        previewImage: dataUrl
+      }
+    };
+    const r = await apiCall('/api/snake-skin/save', {
+      method: 'POST',
+      body: JSON.stringify({ userId: AuthState.user.id, skinName: name, skinData })
+    });
+    if (r.success) {
+      showToast('皮肤保存成功！');
+      renderSavedSkins();
+    } else {
+      showToast(r.message || '保存失败');
+    }
+  }
+
+  function showToast(msg) {
+    let t = document.getElementById('diyToast');
+    if (!t) {
+      t = document.createElement('div');
+      t.id = 'diyToast';
+      t.style.cssText = 'position:fixed;top:80px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.8);color:#fff;padding:10px 20px;border-radius:12px;z-index:10000;font-size:14px;transition:opacity .3s;';
+      document.body.appendChild(t);
+    }
+    t.textContent = msg; t.style.opacity = '1';
+    clearTimeout(t._timer);
+    t._timer = setTimeout(() => t.style.opacity = '0', 2000);
+  }
 };

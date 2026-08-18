@@ -295,6 +295,119 @@
         </div>
     </div>
 
+    <!-- ============ 独立 DIY 创作工坊（全屏） ============ -->
+    <div id="diyWorkshopScreen" class="diy-workshop hidden">
+        <div class="diy-workshop-bg">
+            <div class="floating-circles">
+                <div class="circle circle1"></div><div class="circle circle2"></div><div class="circle circle3"></div>
+                <div class="circle circle4"></div><div class="circle circle5"></div>
+            </div>
+        </div>
+        <header class="diy-header">
+            <button id="diyBackBtn" class="btn btn-secondary diy-back-btn">⬅️ 返回大厅</button>
+            <h1 class="diy-title">🎨 萌蛇创作工坊</h1>
+            <div class="diy-toolbar">
+                <button id="diyUndoBtn" class="diy-tool-btn" title="撤销">↩️</button>
+                <button id="diyRedoBtn" class="diy-tool-btn" title="重做">↪️</button>
+                <button id="diyClearBtn" class="diy-tool-btn diy-danger" title="清空">🗑️</button>
+                <button id="diySaveBtn" class="diy-tool-btn diy-save">💾 保存</button>
+            </div>
+        </header>
+        <div class="diy-workshop-body">
+            <!-- 左侧工具面板 -->
+            <aside class="diy-sidebar">
+                <div class="diy-tabs">
+                    <button class="diy-tab-btn active" data-diytab="stickers">✨ 贴纸</button>
+                    <button class="diy-tab-btn" data-diytab="brush">🖌️ 画笔</button>
+                    <button class="diy-tab-btn" data-diytab="base">🐍 蛇身</button>
+                    <button class="diy-tab-btn" data-diytab="emoji">😀 表情</button>
+                    <button class="diy-tab-btn" data-diytab="bg">🌌 背景</button>
+                </div>
+                <div class="diy-tab-panel active" data-diytab="stickers">
+                    <p class="diy-hint">点击添加贴纸，可在画布上拖拽/缩放/旋转</p>
+                    <div class="sticker-category">
+                        <h4>👑 王者风</h4>
+                        <div class="sticker-grid" id="stickerRoyal"></div>
+                    </div>
+                    <div class="sticker-category">
+                        <h4>🌿 自然风</h4>
+                        <div class="sticker-grid" id="stickerNature"></div>
+                    </div>
+                    <div class="sticker-category">
+                        <h4>⚡ 特效</h4>
+                        <div class="sticker-grid" id="stickerEffect"></div>
+                    </div>
+                    <div class="sticker-category">
+                        <h4>🎩 装饰</h4>
+                        <div class="sticker-grid" id="stickerDeco"></div>
+                    </div>
+                </div>
+                <div class="diy-tab-panel hidden" data-diytab="brush">
+                    <p class="diy-hint">自由绘制你的专属图案</p>
+                    <div class="brush-controls">
+                        <label class="diy-label">画笔颜色：<input type="color" id="brushColor" value="#ff6b9d"></label>
+                        <label class="diy-label">笔刷大小：<input type="range" id="brushSize" min="1" max="40" value="6"></label>
+                        <label class="diy-label">透明度：<input type="range" id="brushAlpha" min="10" max="100" value="100"></label>
+                        <div class="brush-style">
+                            <button class="brush-style-btn active" data-brush="solid">● 实心</button>
+                            <button class="brush-style-btn" data-brush="spray">💨 喷雾</button>
+                            <button class="brush-style-btn" data-brush="neon">✨ 霓虹</button>
+                        </div>
+                        <button id="brushEraserBtn" class="diy-tool-btn diy-danger">🧽 橡皮擦</button>
+                    </div>
+                </div>
+                <div class="diy-tab-panel hidden" data-diytab="base">
+                    <p class="diy-hint">设置你的蛇身基础造型</p>
+                    <label class="diy-label">蛇身主色：<input type="color" id="diyBodyColor1" value="#667eea"></label>
+                    <label class="diy-label">蛇身辅色：<input type="color" id="diyBodyColor2" value="#764ba2"></label>
+                    <label class="diy-label">高光色：<input type="color" id="diyBodyColor3" value="#ffffff"></label>
+                    <div class="diy-shapes">
+                        <button class="diy-shape-btn active" data-shape="round">● 圆润</button>
+                        <button class="diy-shape-btn" data-shape="square">■ 方块</button>
+                        <button class="diy-shape-btn" data-shape="diamond">◆ 菱形</button>
+                        <button class="diy-shape-btn" data-shape="star">★ 星形</button>
+                    </div>
+                    <button id="diyApplyBaseBtn" class="diy-tool-btn diy-save">✓ 应用蛇身</button>
+                </div>
+                <div class="diy-tab-panel hidden" data-diytab="emoji">
+                    <p class="diy-hint">表情贴纸可叠加多个</p>
+                    <div class="emoji-sticker-grid" id="emojiStickerGrid"></div>
+                </div>
+                <div class="diy-tab-panel hidden" data-diytab="bg">
+                    <p class="diy-hint">选择创作画布背景</p>
+                    <div class="bg-presets" id="bgPresets"></div>
+                </div>
+            </aside>
+            <!-- 中间画布 -->
+            <main class="diy-canvas-area">
+                <div class="diy-canvas-wrapper">
+                    <canvas id="diyCanvas" width="600" height="600"></canvas>
+                    <div class="diy-canvas-hint" id="diyCanvasHint">👉 在画布上自由创作，贴纸可拖拽/缩放/旋转</div>
+                </div>
+                <div class="diy-canvas-toolbar">
+                    <button id="diyLayerDownBtn" class="diy-tool-btn" title="下移一层">⬇️</button>
+                    <button id="diyLayerUpBtn" class="diy-tool-btn" title="上移一层">⬆️</button>
+                    <button id="diyDeleteSelBtn" class="diy-tool-btn diy-danger" title="删除选中">🗑️ 删除</button>
+                    <span class="diy-canvas-info" id="diyCanvasInfo">0 个元素</span>
+                </div>
+            </main>
+            <!-- 右侧实时预览 -->
+            <aside class="diy-preview-panel">
+                <h3>🎮 实时预览</h3>
+                <canvas id="diyPreviewCanvas" width="200" height="200"></canvas>
+                <p class="diy-hint">这是你在游戏中蛇头的样子</p>
+                <div class="diy-save-section">
+                    <input type="text" id="diySkinName" placeholder="为你的作品起个名字" maxlength="20">
+                    <button id="diySaveSkinBtn" class="diy-tool-btn diy-save">💾 保存到皮肤库</button>
+                </div>
+                <div class="diy-quick-actions">
+                    <button id="diyUsePhotoBtn" class="diy-tool-btn">📷 用照片</button>
+                    <button id="diyRandomBtn" class="diy-tool-btn">🎲 随机生成</button>
+                </div>
+            </aside>
+        </div>
+    </div>
+
     <!-- ============ 对战大厅 ============ -->
     <div id="battleLobbyScreen" class="start-screen hidden">
         <div class="floating-circles">
