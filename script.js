@@ -1862,7 +1862,6 @@ document.addEventListener('DOMContentLoaded', function() {
   bindSkinSaveLoad();
   bindCustomizeTabs();
   renderAllPreviews();
-  initDiyWorkshop();
 
   bindKeyboard();
   bindAdventureMobileControls();
@@ -1906,7 +1905,7 @@ document.addEventListener('DOMContentLoaded', function() {
 window.__runPartB = function () {
 
   function showScreen(id) {
-    ['loginScreen','startScreen','battleLobbyScreen','battleRoomScreen','gameContainer'].forEach(s => {
+    ['loginScreen','startScreen','battleLobbyScreen','battleRoomScreen','gameContainer','diyWorkshopScreen'].forEach(s => {
       const el = $(s); if (el) el.classList.add('hidden');
     });
     const el = $(id); if (el) el.classList.remove('hidden');
